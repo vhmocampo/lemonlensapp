@@ -112,6 +112,18 @@ return [
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
+        'mongodb' => [
+            'driver' => 'mongodb',
+            'dsn' => env('MONGO_DB_URI'), // optional
+            'host' => env('MONGO_DB_HOST'),
+            'port' => env('MONGO_DB_PORT'),
+            'database' => env('MONGO_DB_DATABASE'),
+            'username' => env('MONGO_DB_USERNAME'),
+            'password' => env('MONGO_DB_PASSWORD'),
+            'options' => [
+                'database' => env('MONGO_AUTH_DB', 'admin'), // default auth DB
+            ],
+        ],
     ],
 
     /*
