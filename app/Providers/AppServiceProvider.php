@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -20,5 +21,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         //
+        if (file_exists(base_path('routes/local.php'))) {
+            Route::middleware('web')
+                ->group(base_path('routes/local.php'));
+        }
     }
 }

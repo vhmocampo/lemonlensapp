@@ -46,11 +46,11 @@ class LemonbaseClient
     }
 
     /**
-     * Extract complaints that fall within a specific mileage range.
-     * The range starts at the given mileage and extends to mileage + 60,000.
+     * Extract complaints that fall at or above a specific mileage.
+     * The range starts at the given mileage with no upper limit.
      *
      * @param Vehicle|null $vehicle The vehicle object containing complaint data
-     * @param int $mileage The base mileage to start from
+     * @param int $mileage The minimum mileage threshold
      * @return VehicleComplaintCollection|VehicleComplaint[] An array of VehicleComplaint objects
      */
     public function extractComplaintsInMileageRange(?Vehicle $vehicle, int $mileage): VehicleComplaintCollection|array
@@ -59,12 +59,11 @@ class LemonbaseClient
             return [];
         }
 
-        $highMileage = $mileage + 60000;
         $relevantComplaints = [];
 
         foreach ($vehicle->buckets as $bucket) {
-            // Check if the bucket's mileage range overlaps with our target range
-            if ($bucket['from_mileage'] <= $highMileage && $bucket['to_mileage'] >= $mileage) {
+            // Check if the bucket's mileage range has any part above or equal to our minimum mileage
+            if ($bucket['to_mileage'] >= $mileage) {
                 // Include all complaints from this bucket
                 if (!empty($bucket['complaints'])) {
                     foreach ($bucket['complaints'] as $complaint) {
