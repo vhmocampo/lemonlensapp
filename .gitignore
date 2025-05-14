@@ -22,6 +22,7 @@ Homestead.json
 /.vagrant
 .phpunit.result.cache
 
+/routes/local.php
 /app/Examples
 /public/build
 /storage/pail
