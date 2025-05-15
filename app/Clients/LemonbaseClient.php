@@ -5,6 +5,7 @@ namespace App\Clients;
 use App\Data\VehicleComplaint;
 use App\Data\VehicleComplaintCollection;
 use App\Models\Vehicle;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Class LemonbaseClient
@@ -27,6 +28,22 @@ class LemonbaseClient
         $this->baseUrl = config('lemonbase.base_url');
         $this->apiKey = config('lemonbase.api_key');
         $this->retries = config('lemonbase.retries', 3);
+    }
+
+    public function getMongoClient()
+    {
+        return DB::connection('mongodb')->getClient();
+    }
+
+    /**
+     * Get the vehicles collection from the MongoDB database.
+     *
+     * @return \Illuminate\Support\Collection
+     * @throws \MongoDB\Driver\Exception\Exception
+     */
+    public function getMongoVehiclesCollection()
+    {
+        return $this->getMongoClient()->selectCollection('lemonbase', 'vehicles');
     }
 
     /**
