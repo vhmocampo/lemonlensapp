@@ -17,7 +17,6 @@ return [
     'paths' => ['api/*', 'sanctum/csrf-cookie'],
     'allowed_methods' => ['*'],
     'allowed_origins' => [
-        'https://car-health-tracker-vmocampo357.replit.app/',
         'https://car-health-tracker-vmocampo357.replit.app'
     ],
     'allowed_origins_patterns' => [],
