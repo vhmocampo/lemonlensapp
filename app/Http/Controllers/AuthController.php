@@ -7,16 +7,17 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller{
 
     public function google(Request $request)
     {
-        $code = $request->input('code');
+        $accessToken = $request->input('access_token');
 
         // Exchange the code for user info from Google
         $googleUser = Socialite::driver('google')->stateless()->userFromToken(
-            $this->exchangeCodeForAccessToken($code)
+            $accessToken
         );
 
         // Find or create user
@@ -24,7 +25,8 @@ class AuthController extends Controller{
             'email' => $googleUser->getEmail(),
         ], [
             'name' => $googleUser->getName(),
-            // Any other fields...
+            'email' => $googleUser->getEmail(),
+            'password' => bcrypt(Str::random(16)), // Generate a random password
         ]);
 
         // Create Sanctum token
