@@ -10,8 +10,18 @@ Route::get('/reports/{id}/status', [ReportController::class, 'status']); // chec
 
 Route::get('/reports/{id}', [ReportController::class, 'show']);          // get final report
 
+Route::post('/auth/register', [AuthController::class, 'register']);
+Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/google', [AuthController::class, 'google']);
 
-Route::middleware('auth:sanctum')->get('/me', function (Request $request) {
-    return $request->user();
+// Protected routes
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/auth/logout', [AuthController::class, 'logout']);
+
+    // Get authenticated user's information
+    Route::get('/me', function (Request $request) {
+        return $request->user();
+    });
+
+    // Add other protected routes here
 });
