@@ -2,17 +2,23 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\MetadataController;
 use Illuminate\Http\Request;
 
+// Report generation routes
 Route::post('/reports', [ReportController::class, 'store']);            // create report
-
 Route::get('/reports/{id}/status', [ReportController::class, 'status']); // check status
-
 Route::get('/reports/{id}', [ReportController::class, 'show']);          // get final report
 
+// Authentication routes
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/google', [AuthController::class, 'google']);
+
+// Metadata routes
+Route::get('/vehicle/makes', [MetadataController::class, 'makes']); // get all makes
+Route::get('/vehicle/models', [MetadataController::class, 'models']); // get models for a specific make
+Route::get('/vehicle/years', [MetadataController::class, 'years']); // get all years
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
