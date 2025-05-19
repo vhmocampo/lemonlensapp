@@ -3,12 +3,13 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\MetadataController;
+use App\Http\Controllers\ReportController;
 use Illuminate\Http\Request;
 
 // Report generation routes
 Route::post('/reports', [ReportController::class, 'store']);            // create report
-Route::get('/reports/{id}/status', [ReportController::class, 'status']); // check status
-Route::get('/reports/{id}', [ReportController::class, 'show']);          // get final report
+Route::get('/reports/{uuid}/status', [ReportController::class, 'status']); // check status
+Route::get('/reports/{uuid}', [ReportController::class, 'show']);          // get final report
 
 // Authentication routes
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -19,6 +20,9 @@ Route::post('/auth/google', [AuthController::class, 'google']);
 Route::get('/vehicle/makes', [MetadataController::class, 'makes']); // get all makes
 Route::get('/vehicle/models', [MetadataController::class, 'models']); // get models for a specific make
 Route::get('/vehicle/years', [MetadataController::class, 'years']); // get all years
+
+// Anonymous session assignment routes
+Route::get('/session', [AuthController::class, 'assignSession']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
