@@ -10,10 +10,33 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
+    /**
+     * Assign an anonymous session to a user
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function assignSession(Request $request)
+    {
+        // Generate a random session ID
+        $sessionId = (string) Str::uuid();
+
+        // Optionally store in Redis if you want expiration
+        Cache::put('guest_session:' . $sessionId, true, now()->addDay());
+
+        // Store the session ID in the database or cache
+        // For simplicity, we are just returning it here
+        return response()->json([
+            'session_id' => $sessionId,
+            'message' => 'Session assigned successfully'
+        ]);
+    }
+
     /**
      * Register a new user
      *
