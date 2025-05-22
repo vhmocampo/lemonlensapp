@@ -7,10 +7,10 @@ use App\Data\Repair;
 use App\Facades\Lemonbase;
 use App\Data\VehicleComplaintCollection;
 use App\Data\VehicleComplaint;
+use App\Models\Report;
 use App\Services\RepairDescriptionService;
 use App\Services\ScoringService;
 use App\Util\Deslugify;
-use OpenAI\Enums\Moderations\Category;
 
 class ReportFactory
 {
@@ -19,7 +19,7 @@ class ReportFactory
      *
      * @param object $report
      */
-    public static function createFreeReport($report): void
+    public static function createFreeReport(Report $report): void
     {
         /** @var VehicleComplaintCollection $complaints */
         $complaints = Lemonbase::getComplaintsForYearMakeModelMileage(

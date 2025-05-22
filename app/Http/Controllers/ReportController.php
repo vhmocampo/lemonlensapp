@@ -64,7 +64,7 @@ class ReportController extends Controller
         $report->save();
 
         // Dispatch job to generate report
-        // GenerateReportJob::dispatch($report);
+        GenerateReportJob::dispatch($report->id);
 
         return response()->json([
             'message' => 'Report generation has been queued',

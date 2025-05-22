@@ -24,6 +24,6 @@ class GenerateReportJob implements ShouldQueue
     public function handle()
     {
         $report = Report::find($this->reportId);
-        ReportFactory::createFreeReport($report, $report->mileage);
+        ReportFactory::createFreeReport($report);
     }
 }

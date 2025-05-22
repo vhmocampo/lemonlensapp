@@ -120,6 +120,9 @@ class LemonbaseClient
         }
 
         $complaints = [];
+        // Ensure that we capture some complaints prior to the mileage as well (1 year)
+        $mileage = (int) $mileage - 10000; // Adjust mileage to account for the range
+        $mileage = max($mileage, 0); // Ensure mileage is not negative
         foreach ($vehicles as $vehicle) {
             $complaints = array_merge($complaints, $this->extractComplaintsInMileageRange($vehicle, $mileage));
         }
