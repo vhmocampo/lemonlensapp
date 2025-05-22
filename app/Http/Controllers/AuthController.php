@@ -13,6 +13,12 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
+/**
+ * @OA\Tag(
+ *     name="Authentication",
+ *     description="API Endpoints for user authentication"
+ * )
+ */
 class AuthController extends Controller
 {
     /**
@@ -20,6 +26,19 @@ class AuthController extends Controller
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
+     * 
+     * @OA\Get(
+     *     path="/session",
+     *     summary="Get a new anonymous session ID",
+     *     tags={"Authentication"},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Session assigned",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="session_id", type="string", format="uuid", example="f47ac10b-58cc-4372-a567-0e02b2c3d479")
+     *         )
+     *     )
+     * )
      */
     public function assignSession(Request $request)
     {
@@ -42,6 +61,36 @@ class AuthController extends Controller
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
+     * 
+     * @OA\Post(
+     *     path="/auth/register",
+     *     summary="Register a new user",
+     *     tags={"Authentication"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"name", "email", "password", "password_confirmation"},
+     *             @OA\Property(property="name", type="string", example="John Doe"),
+     *             @OA\Property(property="email", type="string", format="email", example="john.doe@example.com"),
+     *             @OA\Property(property="password", type="string", format="password", example="SecurePassword123"),
+     *             @OA\Property(property="password_confirmation", type="string", format="password", example="SecurePassword123")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=201,
+     *         description="User registered successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="User registered successfully"),
+     *             @OA\Property(property="user", type="object", 
+     *                 @OA\Property(property="id", type="integer"),
+     *                 @OA\Property(property="name", type="string"),
+     *                 @OA\Property(property="email", type="string")
+     *             ),
+     *             @OA\Property(property="token", type="string", example="1|laravel_sanctum_token...")
+     *         )
+     *     ),
+     *     @OA\Response(response=422, description="Validation error")
+     * )
      */
     public function register(Request $request)
     {
@@ -78,6 +127,35 @@ class AuthController extends Controller
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
+     * 
+     * @OA\Post(
+     *     path="/auth/login",
+     *     summary="Login with email and password",
+     *     tags={"Authentication"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"email", "password"},
+     *             @OA\Property(property="email", type="string", format="email", example="john.doe@example.com"),
+     *             @OA\Property(property="password", type="string", format="password", example="SecurePassword123")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Login successful",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Login successful"),
+     *             @OA\Property(property="user", type="object",
+     *                 @OA\Property(property="id", type="integer"),
+     *                 @OA\Property(property="name", type="string"),
+     *                 @OA\Property(property="email", type="string")
+     *             ),
+     *             @OA\Property(property="token", type="string", example="1|laravel_sanctum_token...")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Invalid login credentials"),
+     *     @OA\Response(response=422, description="Validation error")
+     * )
      */
     public function login(Request $request)
     {
@@ -114,6 +192,21 @@ class AuthController extends Controller
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
+     * 
+     * @OA\Post(
+     *     path="/auth/logout",
+     *     summary="Logout and invalidate token",
+     *     tags={"Authentication"},
+     *     security={{"sanctum":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successfully logged out",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Successfully logged out")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthenticated")
+     * )
      */
     public function logout(Request $request)
     {
@@ -131,6 +224,33 @@ class AuthController extends Controller
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
+     * 
+     * @OA\Post(
+     *     path="/auth/google",
+     *     summary="Authenticate or register with Google",
+     *     tags={"Authentication"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"access_token"},
+     *             @OA\Property(property="access_token", type="string", description="Google OAuth access token")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successfully authenticated with Google",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="token", type="string", example="1|laravel_sanctum_token..."),
+     *             @OA\Property(property="user", type="object",
+     *                 @OA\Property(property="id", type="integer"),
+     *                 @OA\Property(property="name", type="string"),
+     *                 @OA\Property(property="email", type="string")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Invalid Google token"),
+     *     @OA\Response(response=422, description="Validation error")
+     * )
      */
     public function google(Request $request)
     {

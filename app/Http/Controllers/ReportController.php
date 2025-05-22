@@ -11,9 +11,48 @@ use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Cache;
 
+/**
+ * @OA\Tag(
+ *     name="Reports",
+ *     description="API Endpoints for vehicle reports"
+ * )
+ */
 class ReportController extends Controller
 {
-
+    /**
+     * List all reports for the authenticated user or session.
+     *
+     * @OA\Get(
+     *     path="/reports",
+     *     summary="Get all reports for the authenticated user or session",
+     *     tags={"Reports"},
+     *     @OA\Parameter(
+     *         name="session_id",
+     *         in="query",
+     *         description="Session ID for anonymous users",
+     *         required=false,
+     *         @OA\Schema(type="string", format="uuid")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="List of reports",
+     *         @OA\JsonContent(
+     *             type="array",
+     *             @OA\Items(
+     *                 @OA\Property(property="id", type="string", format="uuid"),
+     *                 @OA\Property(property="year", type="integer"),
+     *                 @OA\Property(property="make", type="string"),
+     *                 @OA\Property(property="model", type="string"),
+     *                 @OA\Property(property="mileage", type="integer"),
+     *                 @OA\Property(property="status", type="string", enum={"pending", "processing", "completed", "failed"}),
+     *                 @OA\Property(property="created_at", type="string", format="date-time"),
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthorized"),
+     *     @OA\Response(response=422, description="Validation error")
+     * )
+     */
     public function index(Request $request)
     {
         $request->headers->set('Accept', 'application/json');
@@ -67,6 +106,34 @@ class ReportController extends Controller
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
+     * 
+     * @OA\Post(
+     *     path="/reports",
+     *     summary="Create a new vehicle report",
+     *     tags={"Reports"},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"make","model","year","mileage"},
+     *             @OA\Property(property="make", type="string", example="Honda"),
+     *             @OA\Property(property="model", type="string", example="Accord"),
+     *             @OA\Property(property="year", type="integer", example=2020),
+     *             @OA\Property(property="mileage", type="integer", example=45000),
+     *             @OA\Property(property="session_id", type="string", format="uuid")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=202,
+     *         description="Report generation queued",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="Report generation has been queued"),
+     *             @OA\Property(property="uuid", type="string", format="uuid"),
+     *             @OA\Property(property="status", type="string", example="pending")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthorized"),
+     *     @OA\Response(response=422, description="Validation error")
+     * )
      */
     public function store(Request $request)
     {
@@ -122,6 +189,30 @@ class ReportController extends Controller
      *
      * @param string $uuid
      * @return \Illuminate\Http\JsonResponse
+     * 
+     * @OA\Get(
+     *     path="/reports/{uuid}/status",
+     *     summary="Check the status of a report",
+     *     tags={"Reports"},
+     *     @OA\Parameter(
+     *         name="uuid",
+     *         in="path",
+     *         required=true,
+     *         description="UUID of the report",
+     *         @OA\Schema(type="string", format="uuid")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Report status",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="uuid", type="string", format="uuid"),
+     *             @OA\Property(property="status", type="string", enum={"pending", "processing", "completed", "failed"}),
+     *             @OA\Property(property="created_at", type="string", format="date-time"),
+     *             @OA\Property(property="updated_at", type="string", format="date-time")
+     *         )
+     *     ),
+     *     @OA\Response(response=404, description="Report not found")
+     * )
      */
     public function status($uuid)
     {
@@ -147,6 +238,35 @@ class ReportController extends Controller
      *
      * @param string $uuid
      * @return \Illuminate\Http\JsonResponse
+     * 
+     * @OA\Get(
+     *     path="/reports/{uuid}",
+     *     summary="Get the completed report details",
+     *     tags={"Reports"},
+     *     @OA\Parameter(
+     *         name="uuid",
+     *         in="path",
+     *         required=true,
+     *         description="UUID of the report",
+     *         @OA\Schema(type="string", format="uuid")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Report details",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="uuid", type="string", format="uuid"),
+     *             @OA\Property(property="make", type="string"),
+     *             @OA\Property(property="model", type="string"),
+     *             @OA\Property(property="year", type="integer"),
+     *             @OA\Property(property="mileage", type="integer"),
+     *             @OA\Property(property="result", type="object"),
+     *             @OA\Property(property="created_at", type="string", format="date-time"),
+     *             @OA\Property(property="completed_at", type="string", format="date-time")
+     *         )
+     *     ),
+     *     @OA\Response(response=404, description="Report not found"),
+     *     @OA\Response(response=409, description="Report is not yet complete")
+     * )
      */
     public function show($uuid)
     {

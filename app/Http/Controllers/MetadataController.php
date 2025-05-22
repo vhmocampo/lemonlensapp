@@ -6,12 +6,35 @@ use App\Models\Stat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
+/**
+ * @OA\Tag(
+ *     name="Vehicle Metadata",
+ *     description="API Endpoints for vehicle metadata like makes, models, and years"
+ * )
+ */
 class MetadataController extends Controller
 {
     /**
      * Get list of all vehicle makes
      *
      * @return \Illuminate\Http\JsonResponse
+     * 
+     * @OA\Get(
+     *     path="/vehicle/makes",
+     *     summary="Get all vehicle makes",
+     *     tags={"Vehicle Metadata"},
+     *     @OA\Response(
+     *         response=200,
+     *         description="List of vehicle makes",
+     *         @OA\JsonContent(
+     *             @OA\Property(
+     *                 property="makes",
+     *                 type="array",
+     *                 @OA\Items(type="string", example="Honda")
+     *             )
+     *         )
+     *     )
+     * )
      */
     public function makes()
     {
@@ -42,6 +65,32 @@ class MetadataController extends Controller
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
+     * 
+     * @OA\Get(
+     *     path="/vehicle/models",
+     *     summary="Get all models for a specific make",
+     *     tags={"Vehicle Metadata"},
+     *     @OA\Parameter(
+     *         name="make",
+     *         in="query",
+     *         required=true,
+     *         description="Vehicle make (e.g. Honda)",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="List of vehicle models for the specified make",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="make", type="string", example="Honda"),
+     *             @OA\Property(
+     *                 property="models",
+     *                 type="array",
+     *                 @OA\Items(type="string", example="Accord")
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=400, description="Make parameter is required")
+     * )
      */
     public function models(Request $request)
     {
@@ -119,6 +168,23 @@ class MetadataController extends Controller
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
+     * 
+     * @OA\Get(
+     *     path="/vehicle/years",
+     *     summary="Get all available vehicle years",
+     *     tags={"Vehicle Metadata"},
+     *     @OA\Response(
+     *         response=200,
+     *         description="List of available vehicle years",
+     *         @OA\JsonContent(
+     *             @OA\Property(
+     *                 property="years",
+     *                 type="array",
+     *                 @OA\Items(type="integer", example=2018)
+     *             )
+     *         )
+     *     )
+     * )
      */
     public function years(Request $request)
     {
