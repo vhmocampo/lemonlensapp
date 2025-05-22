@@ -8,6 +8,7 @@ use App\Facades\Lemonbase;
 use App\Data\VehicleComplaintCollection;
 use App\Data\VehicleComplaint;
 use App\Services\RepairDescriptionService;
+use App\Services\ScoringService;
 use App\Util\Deslugify;
 use OpenAI\Enums\Moderations\Category;
 
@@ -65,6 +66,17 @@ class ReportFactory
             $repairBuckets[$priority] = $finalRepairs;
         }
 
+        // Here we can calculate the vehicle score, before filtering for free reports
+        $vehicleScore = app(ScoringService::class)->getVehicleScore(
+            $report->year,
+            $report->make,
+            $report->model,
+            $report->mileage,
+            $filteredComplaints['category_counts'],
+            $filteredComplaints['priority_counts'],
+            count($filteredComplaints['high']) + count($filteredComplaints['medium']) + count($filteredComplaints['low'])
+        );
+
         // For free reports, sort by score and just get the top 3 for each priority
         foreach ($repairBuckets as $priority => $repairs) {
             if ($priority === 'title_counts') {
@@ -85,6 +97,7 @@ class ReportFactory
         $filteredComplaints['category_counts'] = array_slice($filteredComplaints['category_counts'], 0, 3);
 
         $report->result = [
+            'score' => $vehicleScore,
             'repair_buckets' => $repairBuckets,
             'category_counts' => $filteredComplaints['category_counts'],
             'priority_counts' => $filteredComplaints['priority_counts']
