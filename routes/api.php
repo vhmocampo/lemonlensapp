@@ -7,7 +7,8 @@ use App\Http\Controllers\ReportController;
 use Illuminate\Http\Request;
 
 // Report generation routes
-Route::post('/reports', [ReportController::class, 'store']);            // create report
+Route::post('/reports', [ReportController::class, 'store']);     
+Route::get('/reports', [ReportController::class, 'index']);
 Route::get('/reports/{uuid}/status', [ReportController::class, 'status']); // check status
 Route::get('/reports/{uuid}', [ReportController::class, 'show']);          // get final report
 

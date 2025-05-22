@@ -13,6 +13,55 @@ use Illuminate\Support\Facades\Cache;
 
 class ReportController extends Controller
 {
+
+    public function index(Request $request)
+    {
+        $request->headers->set('Accept', 'application/json');
+
+        // Validate request
+        $validated = $request->validate([
+            'session_id' => 'nullable|uuid',
+        ]);
+
+        // Middleware can be added here if needed
+        // Check authentication - either user must be logged in or session_id must be provided
+        $userId = null;
+        $sessionId = null;
+
+        try {
+            $userOrSession = $this->getUserOrSession($request);
+            $userId = $userOrSession['userId'];
+            $sessionId = $userOrSession['sessionId'];
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => $e->getMessage()
+            ], 401); // 401 Unauthorized
+        }
+
+        // Fetch reports based on user or session ID
+        $query = Report::query();
+        if ($userId) {
+            $query->where('user_id', $userId);
+        } elseif ($sessionId) {
+            $query->where('session_uuid', $sessionId);
+        }
+        $reports = $query->orderBy('created_at', 'desc')->get();
+        $response = [];
+        foreach ($reports as $report) {
+            $response[] = [
+                'uuid' => $report->uuid,
+                'make' => $report->make,
+                'model' => $report->model,
+                'year' => $report->year,
+                'mileage' => $report->mileage,
+                'status' => $report->status->value,
+                'created_at' => $report->created_at,
+                'updated_at' => $report->updated_at,
+            ];
+        }
+        return response()->json($response);
+    }
+
     /**
      * Store a new report request and dispatch generation job
      *
@@ -36,19 +85,14 @@ class ReportController extends Controller
         $userId = null;
         $sessionId = null;
 
-        if ($request->user()) {
-            $userId = $request->user()->id;
-        } elseif ($request->has('session_id')) {
-            $sessionId = $request->input('session_id');
-            if (!Cache::has('guest_session:' . $sessionId)) {
-                return response()->json([
-                    'error' => 'Invalid session ID. Please provide a valid session ID.'
-                ], 401);
-            }
-        } else {
+        try {
+            $userOrSession = $this->getUserOrSession($request);
+            $userId = $userOrSession['userId'];
+            $sessionId = $userOrSession['sessionId'];
+        } catch (\Exception $e) {
             return response()->json([
-                'error' => 'Authentication required. Please provide a session_id or log in.'
-            ], 401);
+                'error' => $e->getMessage()
+            ], 401); // 401 Unauthorized
         }
 
         // Create report
@@ -138,5 +182,30 @@ class ReportController extends Controller
                 'error' => 'Report not found'
             ], 404);
         }
+    }
+
+    /**
+     * Get the user or session ID from the request
+     *
+     * @param Request $request
+     * @return void
+     */
+    private function getUserOrSession(Request $request)
+    {
+        if ($request->user()) {
+            $userId = $request->user()->id;
+        } elseif ($request->has('session_id')) {
+            $sessionId = $request->input('session_id');
+            if (!Cache::has('guest_session:' . $sessionId)) {
+                throw new \Exception('Invalid session ID. Please provide a valid session ID.');
+            }
+        } else {
+            throw new \Exception('Authentication required. Please provide a session_id or log in.');
+        }
+
+        return [
+            'userId' => $userId ?? null,
+            'sessionId' => $sessionId ?? null,
+        ];
     }
 }
