@@ -38,7 +38,7 @@ class Repair
      */
     public function getEstimatedCostLow(): ?float
     {
-        return $this->data['estimated_cost_low'] ?? null;
+        return $this->data['estimated_cost_low'] ?? 50;
     }
 
     /**
@@ -48,7 +48,7 @@ class Repair
      */
     public function getEstimatedCostHigh(): ?float
     {
-        return $this->data['estimated_cost_high'] ?? null;
+        return $this->data['estimated_cost_high'] ?? 200;
     }
 
     /**

@@ -68,7 +68,7 @@ class LemonbaseClient
      *
      * @param Vehicle|null $vehicle The vehicle object containing complaint data
      * @param int $mileage The minimum mileage threshold
-     * @return VehicleComplaintCollection|VehicleComplaint[] An array of VehicleComplaint objects
+     * @return array
      */
     public function extractComplaintsInMileageRange(?Vehicle $vehicle, int $mileage): VehicleComplaintCollection|array
     {
@@ -79,8 +79,10 @@ class LemonbaseClient
         $relevantComplaints = [];
 
         foreach ($vehicle->buckets as $bucket) {
-            // Check if the bucket's mileage range has any part above or equal to our minimum mileage
-            if ($bucket['to_mileage'] >= $mileage) {
+            // Include bucket if mileage is between from and to values
+            // OR if both from and to values are higher than mileage (future problems)
+            if (($bucket['from_mileage'] <= $mileage && $bucket['to_mileage'] >= $mileage) || 
+            ($bucket['from_mileage'] >= $mileage && $bucket['to_mileage'] >= $mileage)) {
                 // Include all complaints from this bucket
                 if (!empty($bucket['complaints'])) {
                     foreach ($bucket['complaints'] as $complaint) {
@@ -90,7 +92,7 @@ class LemonbaseClient
             }
         }
 
-        return new VehicleComplaintCollection($relevantComplaints);
+        return $relevantComplaints;
     }
 
     /**
@@ -108,12 +110,20 @@ class LemonbaseClient
         string $model,
         int $mileage
     ): VehicleComplaintCollection|array {
-        $vehicle = $this->getVehicle($year, $make, $model);
-
-        if (!$vehicle) {
+        $years = range($year - 1, $year + 1);
+        $vehicles = Vehicle::whereIn('year', $years)
+            ->where('make', $make)
+            ->where('model', $model)
+            ->get();
+        if ($vehicles->isEmpty()) {
             return [];
         }
 
-        return $this->extractComplaintsInMileageRange($vehicle, $mileage);
+        $complaints = [];
+        foreach ($vehicles as $vehicle) {
+            $complaints = array_merge($complaints, $this->extractComplaintsInMileageRange($vehicle, $mileage));
+        }
+
+        return new VehicleComplaintCollection($complaints);
     }
 }
