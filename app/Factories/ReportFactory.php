@@ -103,7 +103,7 @@ class ReportFactory
             'priority_counts' => $filteredComplaints['priority_counts']
         ];
 
-        dump($report->result);
+        \Log::debug('Report result:', $report->result);
         $report->status = 'completed';
         $report->save();
     }
