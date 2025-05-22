@@ -123,11 +123,11 @@ class ReportFactory
     /**
      * Filter complaints by category and priority.
      *
-     * @param VehicleComplaintCollection $complaints
+     * @param VehicleComplaintCollection|array $complaints
      * @return array
      */
     public static function filterComplaints(
-        VehicleComplaintCollection $complaints,
+        $complaints,
     ): array {
 
         $repairDescriptionService = app(RepairDescriptionService::class);
