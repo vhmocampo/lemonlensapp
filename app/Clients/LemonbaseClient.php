@@ -68,9 +68,9 @@ class LemonbaseClient
      *
      * @param Vehicle|null $vehicle The vehicle object containing complaint data
      * @param int $mileage The minimum mileage threshold
-     * @return array
+     * @return array Array of complaint data
      */
-    public function extractComplaintsInMileageRange(?Vehicle $vehicle, int $mileage): VehicleComplaintCollection|array
+    public function extractComplaintsInMileageRange(?Vehicle $vehicle, int $mileage): array
     {
         if (!$vehicle || empty($vehicle->buckets)) {
             return [];
@@ -102,29 +102,29 @@ class LemonbaseClient
      * @param string $model
      * @param integer $year
      * @param integer $mileage
-     * @return VehicleComplaintCollection|VehicleComplaint[] An array of VehicleComplaint objects
+     * @return VehicleComplaintCollection A collection of VehicleComplaint objects
      */
     public function getComplaintsForYearMakeModelMileage(
         int $year,
         string $make,
         string $model,
         int $mileage
-    ): VehicleComplaintCollection|array {
+    ): VehicleComplaintCollection {
         $years = range($year - 1, $year + 1);
         $vehicles = Vehicle::whereIn('year', $years)
             ->where('make', $make)
             ->where('model', $model)
             ->get();
-        if ($vehicles->isEmpty()) {
-            return [];
-        }
-
+        
         $complaints = [];
-        // Ensure that we capture some complaints prior to the mileage as well (1 year)
-        $mileage = (int) $mileage - 10000; // Adjust mileage to account for the range
-        $mileage = max($mileage, 0); // Ensure mileage is not negative
-        foreach ($vehicles as $vehicle) {
-            $complaints = array_merge($complaints, $this->extractComplaintsInMileageRange($vehicle, $mileage));
+        
+        if (!$vehicles->isEmpty()) {
+            // Ensure that we capture some complaints prior to the mileage as well (1 year)
+            $mileage = (int) $mileage - 10000; // Adjust mileage to account for the range
+            $mileage = max($mileage, 0); // Ensure mileage is not negative
+            foreach ($vehicles as $vehicle) {
+                $complaints = array_merge($complaints, $this->extractComplaintsInMileageRange($vehicle, $mileage));
+            }
         }
 
         return new VehicleComplaintCollection($complaints);
