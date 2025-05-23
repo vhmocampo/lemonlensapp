@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use App\Middleware\OptionalSanctumAuth;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
