@@ -127,7 +127,7 @@ class ReportFactory
      * @return array
      */
     public static function filterComplaints(
-        $complaints,
+        $complaints
     ): array {
 
         $repairDescriptionService = app(RepairDescriptionService::class);
