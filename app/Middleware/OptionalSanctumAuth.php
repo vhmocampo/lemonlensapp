@@ -22,10 +22,18 @@ class OptionalSanctumAuth
             $model = Sanctum::$personalAccessTokenModel;
             $accessToken = $model::findToken($request->bearerToken());
             
-            if ($accessToken && !$accessToken->expired()) {
-                $user = $accessToken->tokenable;
-                if ($user) {
-                    auth()->setUser($user);
+            if ($accessToken) {
+                // Check if token is expired, but only if expiration is enabled in config
+                $tokenExpired = false;
+                if (config('sanctum.expiration')) {
+                    $tokenExpired = $accessToken->created_at->lte(now()->subMinutes(config('sanctum.expiration')));
+                }
+                
+                if (!$tokenExpired) {
+                    $user = $accessToken->tokenable;
+                    if ($user) {
+                        auth()->setUser($user);
+                    }
                 }
             }
         }
