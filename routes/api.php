@@ -10,10 +10,13 @@ use Illuminate\Http\Request;
 // API Version 1
 Route::prefix('v1')->group(function () {
     // Report generation routes
-    Route::post('/reports', [ReportController::class, 'store']);     
-    Route::get('/reports', [ReportController::class, 'index']);
-    Route::get('/reports/{uuid}/status', [ReportController::class, 'status']); // check status
-    Route::get('/reports/{uuid}', [ReportController::class, 'show']);          // get final report
+    Route::middleware(['sanctum.optional'])->group(function() {
+        // Report generation routes
+        Route::post('/reports', [ReportController::class, 'store']);     
+        Route::get('/reports', [ReportController::class, 'index']);
+        Route::get('/reports/{uuid}/status', [ReportController::class, 'status']); 
+        Route::get('/reports/{uuid}', [ReportController::class, 'show']);     
+    });
 
     // Authentication routes
     Route::post('/auth/register', [AuthController::class, 'register']);
