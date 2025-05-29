@@ -102,27 +102,22 @@ class MetadataController extends Controller
             ], 400);
         }
 
-        // Normalize make name for searching in keys
+        // Normalize make name for searching
         $normalizedMake = strtolower($make);
 
         // Cache models for each make for 1 hour
         $cacheKey = 'vehicle_models_' . $normalizedMake;
 
         $models = Cache::remember($cacheKey, 60*60, function() use ($normalizedMake) {
-            // Get all stats that match the make-model pattern
-            $modelStats = Stat::where('key', 'like', 'avg_complaints_' . $normalizedMake . '_%')
-                ->where('key', 'not like', 'avg_complaints_make_%')
+            // Get vehicles from the vehicles collection
+            $vehicles = \App\Models\Vehicle::where('make', 'like', $normalizedMake)
                 ->get();
 
-            // Extract and clean model names from stat keys
-            $models = $modelStats->map(function($stat) use ($normalizedMake) {
-                // Extract the model from the key: 'avg_complaints_toyota_camry' -> 'camry'
-                $model = str_replace('avg_complaints_' . $normalizedMake . '_', '', $stat->key);
-
-                // Format the model name properly
-                $model = $this->formatModelName($model);
-
-                return $model;
+            // Filter and format models by total_complaint_count > 10
+            $models = $vehicles->filter(function($vehicle) {
+                return isset($vehicle->total_complaint_count) && $vehicle->total_complaint_count > 10;
+            })->map(function($vehicle) {
+                return $this->formatModelName($vehicle->model);
             })->unique()->sort()->values()->all();
 
             return $models;
@@ -164,18 +159,32 @@ class MetadataController extends Controller
     }
 
     /**
-     * Get list of all available years
+     * Get list of all available years for a specific make and model
      *
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      * 
      * @OA\Get(
      *     path="/vehicle/years",
-     *     summary="Get all available vehicle years",
+     *     summary="Get all available vehicle years for a specific make and model",
      *     tags={"Vehicle Metadata"},
+     *     @OA\Parameter(
+     *         name="make",
+     *         in="query",
+     *         required=true,
+     *         description="Vehicle make (e.g. Toyota)",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Parameter(
+     *         name="model",
+     *         in="query",
+     *         required=true,
+     *         description="Vehicle model (e.g. 4Runner)",
+     *         @OA\Schema(type="string")
+     *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="List of available vehicle years",
+     *         description="List of available vehicle years for the specified make and model",
      *         @OA\JsonContent(
      *             @OA\Property(
      *                 property="years",
@@ -183,18 +192,35 @@ class MetadataController extends Controller
      *                 @OA\Items(type="integer", example=2018)
      *             )
      *         )
-     *     )
+     *     ),
+     *     @OA\Response(response=400, description="Make and model parameters are required")
      * )
      */
     public function years(Request $request)
     {
-        // For years, we'll provide a static list since we don't have year-specific stats
-        // This could be enhanced in the future to use actual data
-        $years = Cache::remember('vehicle_years', 60*60*24, function() {
-            // Generate years from 2006 to current year
-            $currentYear = 2016;
-            $years = range(2006, $currentYear);
-            rsort($years); // Sort in descending order
+        $make = $request->query('make');
+        $model = $request->query('model');
+        if (!$make || !$model) {
+            return response()->json([
+                'error' => 'Make and model parameters are required'
+            ], 400);
+        }
+
+        // Normalize make and model names for searching
+        $normalizedMake = strtolower($make);
+        $normalizedModel = strtolower(str_replace(' ', '_', $model));
+
+        // Cache years for each make/model for 1 day
+        $cacheKey = 'vehicle_years_' . $normalizedMake . '_' . $normalizedModel;
+
+        $years = Cache::remember($cacheKey, 60*60*24, function() use ($normalizedMake, $normalizedModel) {
+            // Get vehicles from the vehicles collection for the given make and model
+            $vehicles = \App\Models\Vehicle::where('make', 'like', $normalizedMake)
+                ->where('model', 'like', $normalizedModel)
+                ->get();
+
+            // Extract years from vehicles
+            $years = $vehicles->pluck('year')->unique()->sortDesc()->values()->all();
             return $years;
         });
 

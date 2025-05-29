@@ -401,12 +401,32 @@
                 "tags": [
                     "Vehicle Metadata"
                 ],
-                "summary": "Get all available vehicle years",
-                "description": "Get list of all available years",
+                "summary": "Get all available vehicle years for a specific make and model",
+                "description": "Get list of all available years for a specific make and model",
                 "operationId": "14d1bd5da0f09c4248968d1dc795eb3b",
+                "parameters": [
+                    {
+                        "name": "make",
+                        "in": "query",
+                        "description": "Vehicle make (e.g. Toyota)",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "model",
+                        "in": "query",
+                        "description": "Vehicle model (e.g. 4Runner)",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "List of available vehicle years",
+                        "description": "List of available vehicle years for the specified make and model",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -423,6 +443,9 @@
                                 }
                             }
                         }
+                    },
+                    "400": {
+                        "description": "Make and model parameters are required"
                     }
                 }
             }
