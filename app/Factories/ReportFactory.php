@@ -8,6 +8,7 @@ use App\Data\Repair;
 use App\Facades\Lemonbase;
 use App\Data\VehicleComplaintCollection;
 use App\Data\VehicleComplaint;
+use App\Enums\ReportStatus;
 use App\Models\Report;
 use App\Models\Vehicle;
 use App\Services\RepairDescriptionService;
@@ -96,6 +97,7 @@ class ReportFactory
         $freeReport = new FreeReport();
         $freeReport->fromArray($result);
         $report->result = $freeReport;
+        $report->status = ReportStatus::COMPLETED;
         $report->save();
     }
 
@@ -197,7 +199,7 @@ class ReportFactory
                             ? 'widely reported (over 100 complaints)' 
                             : ((intval($complaint['count']) > 10)
                                 ? 'reported at least 10 times'
-                                : (intval($complaint['count']) > 1 
+                                : (intval($complaint['count']) >= 1 
                                     ? 'reported at least once'
                                     : 'not reported'));
 
