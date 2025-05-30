@@ -140,6 +140,12 @@ class ReportFactory
                 $matchScores = array_merge($filteredComplaints[$repair->getTitle()]['match_scores'] ?? [], [$repair->getConfidenceScore()]);
                 $matchScoreAverage = count($matchScores) > 0 ? array_sum($matchScores) / count($matchScores) : 0;
 
+                $primaryComplaint = $complaint->getTitle();
+                // if primary complaint contains any words like 'summarize', 'summary', 'complaint', 'language', 'apologize', 'unable', then set to null
+                if (strpos($primaryComplaint, 'summarize') !== false || strpos($primaryComplaint, 'summary') !== false || strpos($primaryComplaint, 'complaint') !== false || strpos($primaryComplaint, 'language') !== false || strpos($primaryComplaint, 'apologize') !== false || strpos($primaryComplaint, 'unable') !== false) {
+                    $primaryComplaint = null;
+                }
+
                 $filteredComplaints[$repair->getTitle()] = [
                     'count' => $filteredComplaints[$repair->getTitle()]['count'] + 1,
                     'title' => $repair->getTitle(),
@@ -152,8 +158,8 @@ class ReportFactory
                     'bucket_from' => $complaint->getBucketFrom(),
                     'bucket_to' => $complaint->getBucketTo(),
                     'primary_complaint' => 
-                        (strlen($complaint->getTitle()) > strlen($filteredComplaints[$repair->getTitle()]['primary_complaint'])) 
-                        ? $complaint->getTitle()
+                        (strlen($primaryComplaint) > strlen($filteredComplaints[$repair->getTitle()]['primary_complaint'])) 
+                        ? $primaryComplaint
                         : $filteredComplaints[$repair->getTitle()]['primary_complaint']
                 ];
             }
