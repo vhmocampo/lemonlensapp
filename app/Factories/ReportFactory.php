@@ -3,11 +3,13 @@
 namespace App\Factories;
 
 use App\Data\CategoryRankings;
+use App\Data\FreeReport;
 use App\Data\Repair;
 use App\Facades\Lemonbase;
 use App\Data\VehicleComplaintCollection;
 use App\Data\VehicleComplaint;
 use App\Models\Report;
+use App\Models\Vehicle;
 use App\Services\RepairDescriptionService;
 use App\Services\ScoringService;
 use App\Util\Deslugify;
@@ -21,90 +23,79 @@ class ReportFactory
      */
     public static function createFreeReport(Report $report): void
     {
-        /** @var VehicleComplaintCollection $complaints */
-        $complaints = Lemonbase::getComplaintsForYearMakeModelMileage(
+        $vehicle = Lemonbase::getVehicle($report->year, $report->make, $report->model);
+
+        if (!$vehicle) {
+            throw new \Exception('Vehicle not found');
+        }
+
+        // Get the complaints for the vehicle, filter and sort them
+        $filteredComplaints = self::filterComplaints(Lemonbase::getComplaintsForYearMakeModelMileage(
             $report->year,
             $report->make,
             $report->model,
             $report->mileage
-        );
+        ));
+        
+        // Sort the filtered complaints by (count, high_estimate, match_score) descending
+        self::sortComplaints($filteredComplaints);
 
-        $filteredComplaints = self::filterComplaints($complaints);
+        // Strip out sensitive fields and generalize some for free report
+        $complaints = array_slice(self::generalizeComplaints($filteredComplaints), 0, 5);
 
-        // Per priority, flatten the repairs and deduplicate for final output
-        $repairBuckets = [
-            'high' => [],
-            'medium' => [],
-            'low' => [],
-            'title_counts' => [],
-        ];
-
-        // Get the repair buckets and title counts
-        foreach ($filteredComplaints as $priority => $complaints) {
-            $finalRepairs = [];
-            foreach ($complaints as $complaint) {
-                if (empty($complaint['estimated_repairs'])) {
-                    continue;
-                }
-                foreach ($complaint['estimated_repairs'] as $repair) {
-                    $repairBuckets['title_counts'][$repair['title']] = ($repairBuckets['title_counts'][$repair['title']] ?? 0) + 1;
-                    $finalRepairs[$repair['title']] = [
-                        'complaint_title' => $complaint['title'],
-                        'category' => $complaint['category'],
-                        'average_mileage' => $complaint['average_mileage'],
-                        'average_score' => $complaint['average_score'],
-                        'median_cost' => $complaint['median_cost'],
-                        'title' => $repair['title'],
-                        'description' => $repair['description'],
-                        'confidence_score' => $repair['confidence_score'],
-                        'estimated_cost_low' => $repair['estimated_cost_low'],
-                        'estimated_cost_high' => $repair['estimated_cost_high'],
-                        'estimated_cost' => $repair['estimated_cost'],
-                    ];
-                }
+        // get lowest cost from complaints, then get highest cost and present a range
+        $costFrom = 0;
+        $costTo = 0;
+        foreach ($complaints as $complaint) {
+            if ($complaint['average_cost'] < $costFrom || $costFrom === 0) {
+                $costFrom = $complaint['average_cost'];
             }
-            $repairBuckets[$priority] = $finalRepairs;
+            if ($complaint['average_cost'] > $costTo || $costTo === 0) {
+                $costTo = $complaint['average_cost'];
+            }   
         }
 
-        // Here we can calculate the vehicle score, before filtering for free reports
-        $vehicleScore = app(ScoringService::class)->getVehicleScore(
-            $report->year,
-            $report->make,
-            $report->model,
-            $report->mileage,
-            $filteredComplaints['category_counts'],
-            $filteredComplaints['priority_counts'],
-            count($filteredComplaints['high']) + count($filteredComplaints['medium']) + count($filteredComplaints['low'])
-        );
-
-        // For free reports, sort by score and just get the top 3 for each priority
-        foreach ($repairBuckets as $priority => $repairs) {
-            if ($priority === 'title_counts') {
-                continue;
-            }
-            usort($repairs, function ($a, $b) {
-                return $b['average_score'] <=> $a['average_score'];
-            });
-            $repairBuckets[$priority] = array_slice($repairs, 0, 3);
-        }
-
-        // For free reports, show top 3 titles, ordered by count
-        arsort($repairBuckets['title_counts']);
-        $repairBuckets['title_counts'] = array_slice($repairBuckets['title_counts'], 0, 3);
-
-        // For free reports, show top 3 categories, ordered by count
-        arsort($filteredComplaints['category_counts']);
-        $filteredComplaints['category_counts'] = array_slice($filteredComplaints['category_counts'], 0, 3);
-
-        $report->result = [
-            'score' => $vehicleScore,
-            'repair_buckets' => $repairBuckets,
-            'category_counts' => $filteredComplaints['category_counts'],
-            'priority_counts' => $filteredComplaints['priority_counts']
+        // Get score for this vehicle
+        $score = app(ScoringService::class)->getVehicleScore($vehicle);
+        $recommendation = app(ScoringService::class)->getBuyerReccomendation($score);
+        $result = [
+            'score' => $score,
+            'summary' => $vehicle->content['summary'] ?? '',
+            'recommendation' => $recommendation,
+            'complaints' => $complaints,
+            'cost_from' => $costFrom,
+            'cost_to' => $costTo,
+            'recalls' => $vehicle->getRecalls() ?? [
+                [
+                    'description' => 'No recalls/critical issues found, consider a premium report for this vehicle for more information',
+                    'priority' => 2,
+                ]
+            ],
+            'known_issues' => $vehicle->getKnownIssues() ?? [
+                [
+                    'description' => 'No widley known issues found, consider a premium report for this vehicle for more information',
+                    'priority' => 2,
+                ]
+            ],
+            'suggestions' => $vehicle->getSuggestions() ?? [
+                [
+                    'description' => 'Regular maintenance extends the lifespan of this vehicle significantly',
+                    'priority' => 2,
+                ],
+                [
+                    'description' => 'Change the oil and filter regularly, and check the air filter',
+                    'priority' => 2,
+                ],
+                [
+                    'description' => 'Check the maintenance schedule and follow it',
+                    'priority' => 2,
+                ]
+            ],
         ];
-
-        \Log::debug('Report result:', $report->result);
-        $report->status = 'completed';
+        
+        $freeReport = new FreeReport();
+        $freeReport->fromArray($result);
+        $report->result = $freeReport;
         $report->save();
     }
 
@@ -121,92 +112,107 @@ class ReportFactory
     }
 
     /**
-     * Filter complaints by category and priority.
+     * Filter the complaints to only include the most common repairs
      *
-     * @param VehicleComplaintCollection|array $complaints
+     * @param VehicleComplaintCollection $complaints
      * @return array
      */
-    public static function filterComplaints(
-        $complaints
-    ): array {
+    private static function filterComplaints(VehicleComplaintCollection $complaints)
+    {
+        $filteredComplaints = [];
+        foreach ($complaints->items() as $complaint) {
 
-        $repairDescriptionService = app(RepairDescriptionService::class);
-        $categoryCounts = [];
-        $priorityCounts = [];
-        $filteredComplaints = [
-            'high' => [],
-            'medium' => [],
-            'low' => [],
-        ];
+            $repairDtos = $complaint->getEstimatedRepairDTOs(0.60);
+            foreach ($repairDtos as $repair) {
 
-        /** @var VehicleComplaint $complaint */
-        $complaints->items()->each(function (VehicleComplaint $complaint) use (
-            &$categoryCounts,
-            &$priorityCounts,
-            &$filteredComplaints,
-            $repairDescriptionService
-        ) {
-            $category = $complaint->getCategory();
-            $priority = CategoryRankings::getPriority($category);
-
-            $categoryCounts[$category] = ($categoryCounts[$category] ?? 0) + 1;
-            $priorityCounts[$priority] = ($priorityCounts[$priority] ?? 0) + 1;
-
-
-            $repairDtos = $complaint->getEstimatedRepairDTOs(0.65);
-
-            if (empty($repairDtos)) {
-                return;
-            }
-
-            // Deduplicate repairs by title
-            $repairDtos = array_values(array_unique($repairDtos, SORT_REGULAR));
-
-            $averageScore = array_reduce($repairDtos, function ($carry, Repair $repair) {
-                return $carry + $repair->getConfidenceScore();
-            }, 0) / count($repairDtos);
-
-            // Replace the average cost calculation with median
-            $costs = array_map(function (Repair $repair) {
-                return ($repair->getEstimatedCostLow() + $repair->getEstimatedCostHigh()) / 2;
-            }, $repairDtos);
-            sort($costs);
-            $medianCost = 0;
-            $count = count($costs);
-            if ($count > 0) {
-                $middle = floor(($count - 1) / 2);
-                if ($count % 2) {
-                    // Odd number of elements
-                    $medianCost = $costs[$middle];
-                } else {
-                    // Even number of elements - average the middle two
-                    $medianCost = ($costs[$middle] + $costs[$middle + 1]) / 2;
-                }
-            }
-
-            $filteredComplaints[$priority][] = [
-                'title' => $complaint->getTitle(),
-                'category' => $category,
-                'average_mileage' => $complaint->getAverageMileage(),
-                'average_score' => $averageScore,
-                'median_cost' => $medianCost,
-                'estimated_repairs' => array_map(function (Repair $repair) use ($repairDescriptionService) {
-                    return [
-                        'title' => Deslugify::delugify($repair->getTitle()),
-                        'description' => $repairDescriptionService($repair->getTitle()),
-                        'confidence_score' => $repair->getConfidenceScore(),
-                        'estimated_cost_low' => $repair->getEstimatedCostLow(),
-                        'estimated_cost_high' => $repair->getEstimatedCostHigh(),
-                        'estimated_cost' => $repair->getEstimatedCostLow() + ($repair->getEstimatedCostHigh() - $repair->getEstimatedCostLow()) / 2,
+                // If the repair title is not in the filtered complaints, add it
+                if (!isset($filteredComplaints[$repair->getTitle()])) {
+                    $filteredComplaints[$repair->getTitle()] = [
+                        'count' => 0,
+                        'match_scores' => [],
+                        'primary_complaint' => '',
                     ];
-                }, $repairDtos),
-            ];
-        });
+                }
 
-        // set the category counts and priority counts in the filtered complaints
-        $filteredComplaints['category_counts'] = $categoryCounts;
-        $filteredComplaints['priority_counts'] = $priorityCounts;
+                // Calculate the average match score for the repair title
+                $matchScores = array_merge($filteredComplaints[$repair->getTitle()]['match_scores'] ?? [], [$repair->getConfidenceScore()]);
+                $matchScoreAverage = count($matchScores) > 0 ? array_sum($matchScores) / count($matchScores) : 0;
+
+                $filteredComplaints[$repair->getTitle()] = [
+                    'count' => $filteredComplaints[$repair->getTitle()]['count'] + 1,
+                    'title' => $repair->getTitle(),
+                    'normalized_title' => Deslugify::deslugify($repair->getTitle()),
+                    'match_score' => $matchScoreAverage,
+                    'low_estimate' => $repair->getEstimatedCostLow(),
+                    'high_estimate' => $repair->getEstimatedCostHigh(),
+                    'category' => $complaint->getCategory(),
+                    'category_ranking' => CategoryRankings::getPriority($complaint->getCategory()),
+                    'bucket_from' => $complaint->getBucketFrom(),
+                    'bucket_to' => $complaint->getBucketTo(),
+                    'primary_complaint' => 
+                        (strlen($complaint->getTitle()) > strlen($filteredComplaints[$repair->getTitle()]['primary_complaint'])) 
+                        ? $complaint->getTitle()
+                        : $filteredComplaints[$repair->getTitle()]['primary_complaint']
+                ];
+            }
+        }
 
         return $filteredComplaints;
+    }
+
+    /**
+     * Sort the complaints by count, high estimate, and match score
+     *
+     * @param array $complaints
+     */
+    private static function sortComplaints(array &$complaints)
+    {
+        uasort($complaints, function ($a, $b) {
+            // First compare by count
+            if ($a['count'] !== $b['count']) {
+                return $b['count'] - $a['count'];
+            }
+            
+            if ($a['high_estimate'] !== $b['high_estimate']) {
+                return $b['high_estimate'] - $a['high_estimate'];
+            }
+            
+            // Finally by match score
+            return $b['match_score'] <=> $a['match_score'];
+        });
+    }
+
+    /**
+     * Generalize the complaints to only include the information we want to show in the free report
+     *
+     * @param array $complaints
+     * @return array
+     */
+    private static function generalizeComplaints(array $complaints, $reportType = 'free')
+    {
+        $descriptionService = app(RepairDescriptionService::class);
+        return array_map(function($complaint) use ($reportType, $descriptionService) {
+
+            $timesReported = (intval($complaint['count']) > 100) 
+                            ? 'widely reported (over 100 complaints)' 
+                            : ((intval($complaint['count']) > 10)
+                                ? 'reported at least 10 times'
+                                : (intval($complaint['count']) > 1 
+                                    ? 'reported at least once'
+                                    : 'not reported'));
+
+            $description = $descriptionService($complaint['title']);
+
+            return [
+                'normalized_title' => $complaint['normalized_title'],
+                'description' => $description,
+                'times_reported' => $timesReported,
+                'bucket_from' => $complaint['bucket_from'],
+                'bucket_to' => $complaint['bucket_to'],
+                'likelyhood' => null, // users will have to pay for premium to see this
+                'complaint' => (strlen($complaint['primary_complaint']) > 10 && strpos($complaint['primary_complaint'], 'NHTSA') === false) ? $complaint['primary_complaint'] : null, // only show if its a longer complaint with details
+                'average_cost' => floor(($complaint['low_estimate'] + $complaint['high_estimate']) / 2),
+            ];
+        }, $complaints);
     }
 }

@@ -54,6 +54,16 @@ class VehicleComplaint
         return $this->data['estimated_repairs'] ?? [];
     }
 
+    public function getBucketFrom(): ?int
+    {
+        return $this->data['bucket_from'] ?? null;
+    }
+    
+    public function getBucketTo(): ?int
+    {
+        return $this->data['bucket_to'] ?? null;
+    }
+
     /**
      * Get estimated repairs as Repair DTOs, optionally filtered by confidence score.
      * Only repairs that have an estimated cost are returned.

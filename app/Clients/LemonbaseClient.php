@@ -56,7 +56,7 @@ class LemonbaseClient
      */
     public function getVehicle($year, $make, $model)
     {
-        return Vehicle::where('year', $year)
+        return Vehicle::where('year', intval($year))
             ->where('make', $make)
             ->where('model', $model)
             ->first();
@@ -79,14 +79,19 @@ class LemonbaseClient
         $relevantComplaints = [];
 
         foreach ($vehicle->buckets as $bucket) {
-            // Include bucket if mileage is between from and to values
-            // OR if both from and to values are higher than mileage (future problems)
-            if (($bucket['from_mileage'] <= $mileage && $bucket['to_mileage'] >= $mileage) || 
-            ($bucket['from_mileage'] >= $mileage && $bucket['to_mileage'] >= $mileage)) {
+            // Calculate the mileage range we want to include
+            $minMileage = max(0, $mileage - 15000);
+            $maxMileage = $mileage + 45000;
+
+            // Check if bucket overlaps with our desired mileage range
+            if (($bucket['from_mileage'] <= $maxMileage && $bucket['to_mileage'] >= $minMileage)) {
                 // Include all complaints from this bucket
                 if (!empty($bucket['complaints'])) {
                     foreach ($bucket['complaints'] as $complaint) {
-                        $relevantComplaints[] = $complaint;
+                        $relevantComplaints[] = array_merge($complaint, [
+                            'bucket_from' => $bucket['from_mileage'], 
+                            'bucket_to' => $bucket['to_mileage']
+                        ]);
                     }
                 }
             }

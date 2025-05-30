@@ -16,7 +16,7 @@ class Deslugify
      * @param string $slug The slug to convert
      * @return string The human-readable term
      */
-    public static function delugify(string $slug): string
+    public static function deslugify(string $slug): string
     {
         // Replace hyphens with spaces
         $term = str_replace('-', ' ', $slug);

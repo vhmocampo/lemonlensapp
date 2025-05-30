@@ -46,7 +46,7 @@ class RepairDescriptionService
         }
 
         // If not, we need to generate it
-        $term = Deslugify::delugify($normalizedSlug);
+        $term = Deslugify::deslugify($normalizedSlug);
 
         try {
             Log::info("Generating repair description for: {$term}");

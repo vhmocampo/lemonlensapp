@@ -48,6 +48,12 @@ class StatGenerationService
             'Total number of vehicle documents'
         );
 
+        // --- Reliability and complaints per 1000 stats ---
+        $reliabilityScores = [];
+        $complaintsPerThousand = [];
+        $totalComplaintsFor1000 = 0;
+        $totalUnitsSold = 0;
+
         // Process each vehicle document
         $cursor = $vehiclesMongoCollection->find();
         foreach ($cursor as $vehicle) {
@@ -184,6 +190,23 @@ class StatGenerationService
                     $complaintsPerCategory[$category] += 1;
                 }
             }
+
+            // Reliability score
+            if (isset($vehicleArray['content']['reliability']) && is_numeric($vehicleArray['content']['reliability'])) {
+                $reliabilityScores[] = $vehicleArray['content']['reliability'];
+            }
+            // Complaints per 1000 units sold
+            if (
+                isset($vehicleArray['total_complaint_count']) && is_numeric($vehicleArray['total_complaint_count']) &&
+                isset($vehicleArray['content']['units_sold']) && is_numeric($vehicleArray['content']['units_sold']) &&
+                $vehicleArray['content']['units_sold'] > 0
+            ) {
+                $c = (int)$vehicleArray['total_complaint_count'];
+                $u = (int)$vehicleArray['content']['units_sold'];
+                $complaintsPerThousand[] = ($c / $u) * 1000;
+                $totalComplaintsFor1000 += $c;
+                $totalUnitsSold += $u;
+            }
         }
 
         // Debugging - Log counts to help diagnose zero values
@@ -234,6 +257,20 @@ class StatGenerationService
                 'complaints_by_make',
                 'Average complaints for ' . $make
             );
+        }
+
+        // --- Store reliability and complaints per 1000 stats ---
+        if (count($reliabilityScores) > 0) {
+            $minReliability = min($reliabilityScores);
+            $maxReliability = max($reliabilityScores);
+            $avgReliability = array_sum($reliabilityScores) / count($reliabilityScores);
+            Stat::setValue('min_reliability_score', $minReliability, 'reliability', 'Minimum reliability score across all vehicles');
+            Stat::setValue('max_reliability_score', $maxReliability, 'reliability', 'Maximum reliability score across all vehicles');
+            Stat::setValue('avg_reliability_score', round($avgReliability, 2), 'reliability', 'Average reliability score across all vehicles');
+        }
+        if ($totalUnitsSold > 0) {
+            $avgComplaintsPer1000 = ($totalComplaintsFor1000 / $totalUnitsSold) * 1000;
+            Stat::setValue('avg_complaints_per_1000', round($avgComplaintsPer1000, 2), 'complaints', 'Average complaints per 1000 units sold');
         }
     }
 }
