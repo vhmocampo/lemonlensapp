@@ -41,6 +41,10 @@ Route::prefix('v1')->group(function () {
         // Get authenticated user's information
         Route::get('/me', [UserController::class, 'profile']);
 
+        // Credit management routes
+        Route::get('/me/credits/history', [UserController::class, 'creditHistory']);
+        Route::get('/me/credits/stats', [UserController::class, 'creditStats']);
+
         // Add other protected routes here
     });
 });

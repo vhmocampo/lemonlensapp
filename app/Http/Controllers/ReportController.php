@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Report;
+use App\Models\User;
 use App\Jobs\GenerateReportJob;
 use App\Enums\ReportStatus;
+use App\Services\CreditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -19,6 +21,13 @@ use Illuminate\Support\Facades\Cache;
  */
 class ReportController extends Controller
 {
+    protected CreditService $creditService;
+
+    public function __construct(CreditService $creditService)
+    {
+        $this->creditService = $creditService;
+    }
+
     /**
      * List all reports for the authenticated user or session.
      *
@@ -131,8 +140,19 @@ class ReportController extends Controller
      *             @OA\Property(property="status", type="string", example="pending")
      *         )
      *     ),
+     *     @OA\Response(
+     *         response=402,
+     *         description="Insufficient credits",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="error", type="string", example="Insufficient credits"),
+     *             @OA\Property(property="required_credits", type="integer", example=1),
+     *             @OA\Property(property="current_credits", type="integer", example=0)
+     *         )
+     *     ),
      *     @OA\Response(response=401, description="Unauthorized"),
-     *     @OA\Response(response=422, description="Validation error")
+     *     @OA\Response(response=404, description="User not found"),
+     *     @OA\Response(response=422, description="Validation error"),
+     *     @OA\Response(response=500, description="Credit deduction failed")
      * )
      */
     public function store(Request $request)
@@ -161,6 +181,45 @@ class ReportController extends Controller
                 'error' => $e->getMessage()
             ], 401); // 401 Unauthorized
         }
+
+        // Check credits for authenticated users
+        // if ($userId) {
+        //     $user = User::find($userId);
+        //     if (!$user) {
+        //         return response()->json([
+        //             'error' => 'User not found'
+        //         ], 404);
+        //     }
+
+        //     // Check if user has sufficient credits (1 credit per report)
+        //     $requiredCredits = 1;
+        //     if (!$this->creditService->hasCredits($user, $requiredCredits)) {
+        //         return response()->json([
+        //             'error' => 'Insufficient credits',
+        //             'required_credits' => $requiredCredits,
+        //             'current_credits' => $user->getCreditBalance()
+        //         ], 402); // 402 Payment Required
+        //     }
+
+        //     // Deduct credits before creating the report
+        //     try {
+        //         $this->creditService->deductCredits(
+        //             $user, 
+        //             $requiredCredits, 
+        //             'Vehicle report generation',
+        //             [
+        //                 'make' => $validated['make'],
+        //                 'model' => $validated['model'],
+        //                 'year' => $validated['year'],
+        //                 'mileage' => $validated['mileage']
+        //             ]
+        //         );
+        //     } catch (\Exception $e) {
+        //         return response()->json([
+        //             'error' => 'Failed to deduct credits: ' . $e->getMessage()
+        //         ], 500);
+        //     }
+        // }
 
         // Create report
         $report = new Report();

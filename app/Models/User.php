@@ -22,6 +22,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'credits',
     ];
 
     /**
@@ -44,6 +45,31 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'credits' => 'integer',
         ];
+    }
+
+    /**
+     * Get the user's credit transactions
+     */
+    public function transactions()
+    {
+        return Transaction::where('user_id', $this->id)->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * Get the user's credit balance
+     */
+    public function getCreditBalance(): int
+    {
+        return $this->credits ?? 0;
+    }
+
+    /**
+     * Check if user has sufficient credits
+     */
+    public function hasCredits(int $amount): bool
+    {
+        return $this->getCreditBalance() >= $amount;
     }
 }

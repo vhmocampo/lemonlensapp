@@ -84,7 +84,10 @@ class AuthController extends Controller
      *             @OA\Property(property="user", type="object", 
      *                 @OA\Property(property="id", type="integer"),
      *                 @OA\Property(property="name", type="string"),
-     *                 @OA\Property(property="email", type="string")
+     *                 @OA\Property(property="email", type="string"),
+     *                 @OA\Property(property="credits", type="integer"),
+     *                 @OA\Property(property="created_at", type="string", format="date-time"),
+     *                 @OA\Property(property="updated_at", type="string", format="date-time")
      *             ),
      *             @OA\Property(property="token", type="string", example="1|laravel_sanctum_token...")
      *         )
@@ -111,13 +114,21 @@ class AuthController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'credits' => 1, // Give new users 5 free credits
         ]);
 
         $token = $user->createToken('api')->plainTextToken;
 
         return response()->json([
             'message' => 'User registered successfully',
-            'user' => $user,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'credits' => $user->credits,
+                'created_at' => $user->created_at,
+                'updated_at' => $user->updated_at,
+            ],
             'token' => $token
         ], 201);
     }
@@ -148,7 +159,10 @@ class AuthController extends Controller
      *             @OA\Property(property="user", type="object",
      *                 @OA\Property(property="id", type="integer"),
      *                 @OA\Property(property="name", type="string"),
-     *                 @OA\Property(property="email", type="string")
+     *                 @OA\Property(property="email", type="string"),
+     *                 @OA\Property(property="credits", type="integer"),
+     *                 @OA\Property(property="created_at", type="string", format="date-time"),
+     *                 @OA\Property(property="updated_at", type="string", format="date-time")
      *             ),
      *             @OA\Property(property="token", type="string", example="1|laravel_sanctum_token...")
      *         )
@@ -182,7 +196,14 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Login successful',
-            'user' => $user,
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'credits' => $user->credits,
+                'created_at' => $user->created_at,
+                'updated_at' => $user->updated_at,
+            ],
             'token' => $token
         ]);
     }
@@ -244,7 +265,10 @@ class AuthController extends Controller
      *             @OA\Property(property="user", type="object",
      *                 @OA\Property(property="id", type="integer"),
      *                 @OA\Property(property="name", type="string"),
-     *                 @OA\Property(property="email", type="string")
+     *                 @OA\Property(property="email", type="string"),
+     *                 @OA\Property(property="credits", type="integer"),
+     *                 @OA\Property(property="created_at", type="string", format="date-time"),
+     *                 @OA\Property(property="updated_at", type="string", format="date-time")
      *             )
      *         )
      *     ),
@@ -256,26 +280,47 @@ class AuthController extends Controller
     {
         $accessToken = $request->input('access_token');
 
-        // Exchange the code for user info from Google
-        $googleUser = Socialite::driver('google')->stateless()->userFromToken(
-            $accessToken
-        );
+        try {
+            // Get user info from Google using the access token
+            $googleUser = Socialite::driver('google')->stateless()->userFromToken($accessToken);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Invalid Google token'
+            ], 401);
+        }
 
         // Find or create user
-        $user = User::updateOrCreate([
-            'email' => $googleUser->getEmail(),
-        ], [
+        $userData = [
             'name' => $googleUser->getName(),
             'email' => $googleUser->getEmail(),
             'password' => bcrypt(Str::random(16)), // Generate a random password
-        ]);
+        ];
+
+        $user = User::where('email', $googleUser->getEmail())->first();
+        
+        if (!$user) {
+            // New user - give them initial credits
+            $userData['credits'] = 1;
+            $user = User::create($userData);
+        } else {
+            // Existing user - update their info but keep existing credits
+            $updateData = collect($userData)->except(['credits'])->toArray();
+            $user->update($updateData);
+        }
 
         // Create Sanctum token
         $token = $user->createToken('api')->plainTextToken;
 
         return response()->json([
             'token' => $token,
-            'user' => $user
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'credits' => $user->credits,
+                'created_at' => $user->created_at,
+                'updated_at' => $user->updated_at,
+            ]
         ]);
     }
 
