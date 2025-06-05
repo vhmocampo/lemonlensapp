@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\PaymentSuccessful;
 use Illuminate\Container\Attributes\Log;
 use Illuminate\Http\Request;
 use Stripe\Stripe;
@@ -41,10 +42,34 @@ class StripeController extends Controller
             case 'checkout.session.completed':
                 $session = $event->data->object; // contains a \Stripe\Checkout\Session
                 \Log::info('Checkout session completed', ['session' => $session]);
+
+                // Extract metadata from the session
+                $metadata = $session->metadata;
+
+                if (isset($metadata->user_id, $metadata->user_email, $metadata->price_id)) {
+                    // Dispatch the PaymentSuccessful event
+                    PaymentSuccessful::dispatch(
+                        $metadata->price_id,
+                        (int) $metadata->user_id,
+                        $metadata->user_email,
+                        $session->id
+                    );
+
+                    \Log::info('PaymentSuccessful event dispatched', [
+                        'user_id' => $metadata->user_id,
+                        'price_id' => $metadata->price_id,
+                        'session_id' => $session->id
+                    ]);
+                } else {
+                    \Log::warning('Checkout session completed but missing required metadata', [
+                        'session_id' => $session->id,
+                        'metadata' => $metadata
+                    ]);
+                }
                 break;
             default:
                 // Unexpected event type
-                return response()->json(['error' => 'Unhandled event type'], 400);
+                return response()->json(['error' => 'Unhandled event type'], 200);
         }
         return response()->json(['status' => 'success'], 200);
     }
@@ -53,9 +78,7 @@ class StripeController extends Controller
      * Create a Stripe Checkout session for purchasing credits.
      *
      * @param Request $request
-     *
-     * @param Request $request
-     * @return void
+     * @return \Illuminate\Http\JsonResponse
      */
     public function createCheckoutSession(Request $request)
     {
