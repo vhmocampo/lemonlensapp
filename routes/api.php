@@ -38,6 +38,9 @@ Route::prefix('v1')->group(function () {
     // API Documentation
     // The routes for documentation are automatically registered by L5-Swagger
 
+    // Stripe webhook route
+    Route::post('/stripe/webhook', [\App\Http\Controllers\StripeController::class, 'handleWebhook']);
+
     // Protected routes
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
@@ -49,6 +52,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/me/credits/history', [UserController::class, 'creditHistory']);
         Route::get('/me/credits/stats', [UserController::class, 'creditStats']);
 
-        // Add other protected routes here
+        // Stripe session creation route
+        Route::post('/stripe/checkout', [\App\Http\Controllers\StripeController::class, 'createCheckoutSession']);
     });
 });
