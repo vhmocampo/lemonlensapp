@@ -180,11 +180,11 @@ class ReportFactory
             if ($a['count'] !== $b['count']) {
                 return $b['count'] - $a['count'];
             }
-            
+
             if ($a['high_estimate'] !== $b['high_estimate']) {
                 return $b['high_estimate'] - $a['high_estimate'];
             }
-            
+
             // Finally by match score
             return $b['match_score'] <=> $a['match_score'];
         });
@@ -202,12 +202,12 @@ class ReportFactory
         return array_map(function($complaint) use ($reportType, $descriptionService) {
 
             $timesReported = (intval($complaint['count']) > 100) 
-                            ? 'widely reported (over 100 complaints)' 
+                            ? 'well documented' 
                             : ((intval($complaint['count']) > 10)
-                                ? 'reported at least 10 times'
+                                ? 'reported several times'
                                 : (intval($complaint['count']) >= 1 
                                     ? 'reported at least once'
-                                    : 'not reported'));
+                                    : 'not reported often'));
 
             $description = $descriptionService($complaint['title']);
 

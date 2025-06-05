@@ -69,8 +69,7 @@ class AuthController extends Controller
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\JsonContent(
-     *             required={"name", "email", "password", "password_confirmation"},
-     *             @OA\Property(property="name", type="string", example="John Doe"),
+     *             required={"email", "password", "password_confirmation"},
      *             @OA\Property(property="email", type="string", format="email", example="john.doe@example.com"),
      *             @OA\Property(property="password", type="string", format="password", example="SecurePassword123"),
      *             @OA\Property(property="password_confirmation", type="string", format="password", example="SecurePassword123")
@@ -98,7 +97,6 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
         ]);
@@ -111,10 +109,10 @@ class AuthController extends Controller
         }
 
         $user = User::create([
-            'name' => $request->name,
+            'name' => $request->email, // Use email as the name
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'credits' => 1, // Give new users 5 free credits
+            'credits' => 1, // Give new users 1 free credit
         ]);
 
         $token = $user->createToken('api')->plainTextToken;

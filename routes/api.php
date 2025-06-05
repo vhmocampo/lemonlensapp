@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\MetadataController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\UserController;
@@ -12,10 +13,10 @@ Route::prefix('v1')->group(function () {
     // Report generation routes
     Route::middleware(['sanctum.optional'])->group(function() {
         // Report generation routes
-        Route::post('/reports', [ReportController::class, 'store']);     
+        Route::post('/reports', [ReportController::class, 'store']);
         Route::get('/reports', [ReportController::class, 'index']);
-        Route::get('/reports/{uuid}/status', [ReportController::class, 'status']); 
-        Route::get('/reports/{uuid}', [ReportController::class, 'show']);     
+        Route::get('/reports/{uuid}/status', [ReportController::class, 'status']);
+        Route::get('/reports/{uuid}', [ReportController::class, 'show']);
     });
 
     // Authentication routes
@@ -30,6 +31,9 @@ Route::prefix('v1')->group(function () {
 
     // Anonymous session assignment routes
     Route::get('/session', [AuthController::class, 'assignSession']);
+
+    // Contact form route
+    Route::post('/contact', [ContactController::class, 'contact']);
 
     // API Documentation
     // The routes for documentation are automatically registered by L5-Swagger

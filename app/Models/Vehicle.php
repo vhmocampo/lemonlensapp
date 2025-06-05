@@ -25,6 +25,9 @@ class Vehicle extends Model
         $recalls = array_map(function($recall) {
             if (str_contains($recall, 'critical')) {
                 $priority = 1;
+                $recall = preg_replace('/\s+\(critical\)/', '(critical)', $recall);
+                $recall = str_replace('(critical)', '', $recall);
+                $recall = trim($recall);
             } else {
                 $priority = 2;
             }
