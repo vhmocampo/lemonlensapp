@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\ReportStatus;
 use App\Factories\ReportFactory;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -25,5 +26,19 @@ class GenerateReportJob implements ShouldQueue
     {
         $report = Report::find($this->reportId);
         ReportFactory::createFreeReport($report);
+    }
+
+    public function failed(\Throwable $exception)
+    {
+        // Handle the failure, e.g., log the error or notify someone
+        \Log::error('Failed to generate report', [
+            'report_id' => $this->reportId,
+            'error' => $exception->getMessage()
+        ]);
+        $report = Report::find($this->reportId);
+        if ($report) {
+            $report->status = ReportStatus::FAILED;
+            $report->save();
+        }
     }
 }

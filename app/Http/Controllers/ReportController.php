@@ -102,6 +102,11 @@ class ReportController extends Controller
                 'model' => $report->model,
                 'year' => $report->year,
                 'mileage' => $report->mileage,
+                'result' => [
+                    'score' => $report->result['score'] ?? null,
+                    'recommendation' => $report->result['recommendation'] ?? null,
+                    'suggestions' => $report->result['suggestions'] ?? [],
+                ],
                 'status' => $report->status->value,
                 'created_at' => $report->created_at,
                 'updated_at' => $report->updated_at,

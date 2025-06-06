@@ -2,16 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use Laravel\Socialite\Facades\Socialite;
-use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * @OA\Tag(
@@ -83,14 +77,15 @@ class ContactController extends Controller
         // Get validated data
         $email = $request->input('email');
         $subject = $request->input('subject');
-        $message = $request->input('message');
+        $txt = $request->input('message');
 
         try {
             // Placeholder for mail sending logic
             // In a real application, you would use:
-            // Mail::to('your-email@example.com')->send(new ContactFormMail($email, $subject, $message));
-
-            // For now, just simulate successful email sending
+            Mail::raw($txt, function ($message) use ($email, $subject) {
+                $message->to('vmocampo357@gmail.com')
+                        ->subject('Contact Form Submission - ' . $subject . ': ' . $email);
+            });
 
             return response()->json([
                 'message' => 'success'
