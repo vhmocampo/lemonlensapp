@@ -20,12 +20,12 @@ class StripeController extends Controller
     public function handleWebhook(Request $request)
     {
         // Set your Stripe secret key
-        Stripe::setApiKey(env('STRIPE_SECRET'));
+        Stripe::setApiKey(config('services.stripe.secret'));
 
         // Retrieve the event from Stripe
         $payload = $request->getContent();
         $sig_header = $request->header('Stripe-Signature');
-        $endpoint_secret = env('STRIPE_WEBHOOK_SECRET');
+        $endpoint_secret = config('services.stripe.webhook_secret');
         $event = null;
 
         try {
@@ -88,15 +88,15 @@ class StripeController extends Controller
 
         // Optional: validate price_id is allowed for security
         $allowedPrices = [
-            env('BUNDLE_PRICE_ID'),
-            env('SINGLE_PRICE_ID'),
+            config('services.stripe.single_price_id'),
+            config('services.stripe.bundle_price_id'),
         ];
 
         if (!in_array($validated['price_id'], $allowedPrices)) {
-            return response()->json(['error' => 'Invalid price_id' . env('BUNDLE_PRICE_ID')], 400);
+            return response()->json(['error' => 'Invalid price_id'], 400);
         }
 
-        Stripe::setApiKey(env('STRIPE_SECRET'));
+        Stripe::setApiKey(config('services.stripe.secret'));
 
         $session = Session::create([
             'payment_method_types' => ['card'],
@@ -110,8 +110,8 @@ class StripeController extends Controller
                 'user_email' => $request->user()->email,
                 'price_id' => $validated['price_id'],
             ],
-            'success_url' => env('FRONTEND_URL') . '/success?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url' => env('FRONTEND_URL') . '/',
+            'success_url' => config('services.frontend.url') . '/success?session_id={CHECKOUT_SESSION_ID}',
+            'cancel_url' => config('services.frontend.url') . '/',
         ]);
 
         return response()->json(['session_url' => $session->url]);

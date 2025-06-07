@@ -44,4 +44,15 @@ return [
     'openai' => [
         'key' => env('OPEN_AI_KEY'),
     ],
+
+    'stripe' => [
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        'single_price_id' => env('SINGLE_PRICE_ID'),
+        'bundle_price_id' => env('BUNDLE_PRICE_ID'),
+    ],
+
+    'frontend' => [
+        'url' => env('FRONTEND_URL', 'http://127.0.0.1:5173'),
+    ],
 ];

@@ -88,8 +88,8 @@ class IncrementUserCredits
     {
         // Map price IDs to credit amounts
         $priceCreditsMap = [
-            env('SINGLE_PRICE_ID') => 1,  // Single credit
-            env('BUNDLE_PRICE_ID') => 30, // Bundle of 30 credits
+            config('services.stripe.single_price_id') => 1,  // Single credit
+            config('services.stripe.bundle_price_id') => 30, // Bundle of 30 credits
         ];
 
         return $priceCreditsMap[$priceId] ?? 0;
