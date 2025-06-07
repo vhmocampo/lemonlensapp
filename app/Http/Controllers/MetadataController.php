@@ -39,7 +39,7 @@ class MetadataController extends Controller
     public function makes()
     {
         // Cache makes for 1 hour since they come from stats that may update
-        $makes = Cache::remember('vehicle_makes', 60*60, function() {
+        $makes = Cache::remember('vehicle_makes', 60*60*24*5, function() {
             // Get all stats that start with 'avg_complaints_make_'
             $makeStats = Stat::where('key', 'like', 'avg_complaints_make_%')
                 ->get();
@@ -108,7 +108,7 @@ class MetadataController extends Controller
         // Cache models for each make for 1 hour
         $cacheKey = 'vehicle_models_' . $normalizedMake;
 
-        $models = Cache::remember($cacheKey, 60*60, function() use ($normalizedMake) {
+        $models = Cache::remember($cacheKey, 60*60*24*5, function() use ($normalizedMake) {
             // Get vehicles from the vehicles collection
             $vehicles = \App\Models\Vehicle::where('make', 'like', $normalizedMake)
                 ->get();
@@ -213,7 +213,7 @@ class MetadataController extends Controller
         // Cache years for each make/model for 1 day
         $cacheKey = 'vehicle_years_' . $normalizedMake . '_' . $normalizedModel;
 
-        $years = Cache::remember($cacheKey, 60*60*24, function() use ($normalizedMake, $normalizedModel) {
+        $years = Cache::remember($cacheKey, 60*60*24*5, function() use ($normalizedMake, $normalizedModel) {
             // Get vehicles from the vehicles collection for the given make and model
             $vehicles = \App\Models\Vehicle::where('make', 'like', $normalizedMake)
                 ->where('model', 'like', $normalizedModel)
