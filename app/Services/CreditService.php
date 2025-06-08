@@ -42,6 +42,9 @@ class CreditService
 
             // Deduct credits
             $user->credits -= $amount;
+            if ($user->credits < 0) {
+                $user->credits = 0; // Ensure credits do not go negative
+            }
             $user->save();
 
             // Log the transaction with original balance
