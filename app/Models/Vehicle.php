@@ -42,7 +42,7 @@ class Vehicle extends Model
     public function getKnownIssues()
     {
         $knownIssues = $this->content['known_issues'] ?? null;
-        if (!$knownIssues) {
+        if (!$knownIssues || !is_array($knownIssues) || empty($knownIssues)) {
             return null;
         }
         $knownIssues = array_map(function($knownIssue) {
@@ -62,7 +62,7 @@ class Vehicle extends Model
     public function getSuggestions()
     {
         $suggestions = $this->content['suggestions'] ?? null;
-        if (!$suggestions) {
+        if (!$suggestions || !is_array($suggestions) || empty($suggestions)) {
             return null;
         }
         return $suggestions;

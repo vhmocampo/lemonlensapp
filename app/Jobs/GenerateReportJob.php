@@ -25,7 +25,14 @@ class GenerateReportJob implements ShouldQueue
     public function handle()
     {
         $report = Report::find($this->reportId);
-        ReportFactory::createFreeReport($report);
+        switch ($report->type) {
+            case 'standard':
+                ReportFactory::createFreeReport($report);
+                break;
+            case 'premium':
+                ReportFactory::createPremiumReport($report);
+            break;
+        }
     }
 
     public function failed(\Throwable $exception)

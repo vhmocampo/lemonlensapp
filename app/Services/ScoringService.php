@@ -54,6 +54,7 @@ class ScoringService {
         
         $percentile = ($score - $min) / ($max - $min); // 0 to 1
     
+        if ($percentile > 0.86) return "Rare Find, Great Buy!";
         if ($percentile >= 0.85) return "Strong Choice";
         if ($percentile >= 0.65) return "Good Choice";
         if ($percentile >= 0.35) return "Consider Other Options";

@@ -36,6 +36,7 @@ class Report extends Model
     protected $casts = [
         'status' => ReportStatus::class,
         'result' => 'array',
+        'params' => 'array',
     ];
 
     /**

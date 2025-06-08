@@ -102,6 +102,7 @@ class ReportController extends Controller
                 'model' => $report->model,
                 'year' => $report->year,
                 'mileage' => $report->mileage,
+                'type' => $report->type ?? 'standard', // Default to 'standard' if type is not set
                 'result' => [
                     'score' => $report->result['score'] ?? null,
                     'recommendation' => $report->result['recommendation'] ?? null,
@@ -171,6 +172,8 @@ class ReportController extends Controller
             'year' => 'required|integer|min:1900|max:' . (date('Y') + 1),
             'mileage' => 'required|integer|min:0|max:1000000',
             'session_id' => 'nullable|uuid',
+            'zipCode' => 'nullable|string|max:10', // Optional zip code for future use
+            'additionalInfo' => 'nullable|string', // Optional additional info
         ]);
 
         // Check authentication - either user must be logged in or session_id must be provided
@@ -187,47 +190,33 @@ class ReportController extends Controller
             ], 401); // 401 Unauthorized
         }
 
+        $reportType = 'standard'; // Default report type
         // Check credits for authenticated users
-        // if ($userId) {
-        //     $user = User::find($userId);
-        //     if (!$user) {
-        //         return response()->json([
-        //             'error' => 'User not found'
-        //         ], 404);
-        //     }
-
-        //     // Check if user has sufficient credits (1 credit per report)
-        //     $requiredCredits = 1;
-        //     if (!$this->creditService->hasCredits($user, $requiredCredits)) {
-        //         return response()->json([
-        //             'error' => 'Insufficient credits',
-        //             'required_credits' => $requiredCredits,
-        //             'current_credits' => $user->getCreditBalance()
-        //         ], 402); // 402 Payment Required
-        //     }
-
-        //     // Deduct credits before creating the report
-        //     try {
-        //         $this->creditService->deductCredits(
-        //             $user, 
-        //             $requiredCredits, 
-        //             'Vehicle report generation',
-        //             [
-        //                 'make' => $validated['make'],
-        //                 'model' => $validated['model'],
-        //                 'year' => $validated['year'],
-        //                 'mileage' => $validated['mileage']
-        //             ]
-        //         );
-        //     } catch (\Exception $e) {
-        //         return response()->json([
-        //             'error' => 'Failed to deduct credits: ' . $e->getMessage()
-        //         ], 500);
-        //     }
-        // }
+        if ($userId
+            && (
+                (isset($validated['zipCode']) && !empty($validated['zipCode'])) ||
+                (isset($validated['additionalInfo']) && !empty($validated['additionalInfo']))
+            )
+        ) {
+            try {
+                $this->checkCredits($userId);
+                $reportType = 'premium'; // Premium report if additional info is provided
+            } catch (\Exception $e) {
+                return response()->json([
+                    'error' => $e->getMessage(),
+                    'required_credits' => 1, // Assuming 1000 credits are required for a report
+                    'current_credits' => User::find($userId)->getCreditBalance()
+                ], 402); // 402 Payment Required
+            }
+        }
 
         // Create report
         $report = new Report();
+        $report->type = $reportType; // Set report type
+        $report->params = [
+            'zipCode' => $validated['zipCode'] ?? null,
+            'additionalInfo' => $validated['additionalInfo'] ?? null,
+        ];
         $report->uuid = Str::uuid();
         $report->make = $validated['make'];
         $report->model = $validated['model'];
@@ -356,6 +345,7 @@ class ReportController extends Controller
                 'model' => $report->model,
                 'year' => $report->year,
                 'mileage' => $report->mileage, 
+                'type' => $report->type ?? 'standard', // Default to 'standard' if type is not set
                 'result' => $result,
                 'created_at' => $report->created_at,
                 'completed_at' => $report->updated_at,
@@ -391,5 +381,25 @@ class ReportController extends Controller
             'userId' => $userId ?? null,
             'sessionId' => $sessionId ?? null,
         ];
+    }
+
+    /**
+     * Check if the user has sufficient credits before generating a report
+     *
+     * @param [type] $userId
+     * @return void
+     */
+    private function checkCredits($userId)
+    {
+        $user = User::find($userId);
+        if (!$user) {
+           throw new \Exception('User not found');
+        }
+
+        // Check if user has sufficient credits (1 credit per report)
+        $requiredCredits = 1;
+        if (!$this->creditService->hasCredits($user, $requiredCredits)) {
+            throw new \Exception('Insufficient credits');
+        }
     }
 }

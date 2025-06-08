@@ -11,9 +11,12 @@ use App\Data\VehicleComplaint;
 use App\Enums\ReportStatus;
 use App\Models\Report;
 use App\Models\Vehicle;
+use App\Services\PremiumChatService;
 use App\Services\RepairDescriptionService;
 use App\Services\ScoringService;
 use App\Util\Deslugify;
+use Illuminate\Support\Str;
+use App\Services\CreditService;
 
 class ReportFactory
 {
@@ -37,7 +40,7 @@ class ReportFactory
             $report->model,
             $report->mileage
         ));
-        
+
         // Sort the filtered complaints by (count, high_estimate, match_score) descending
         self::sortComplaints($filteredComplaints);
 
@@ -53,7 +56,7 @@ class ReportFactory
             }
             if ($complaint['average_cost'] > $costTo || $costTo === 0) {
                 $costTo = $complaint['average_cost'];
-            }   
+            }
         }
 
         // Get score for this vehicle
@@ -93,7 +96,7 @@ class ReportFactory
                 ]
             ],
         ];
-        
+
         $freeReport = new FreeReport();
         $freeReport->fromArray($result);
         $report->result = $freeReport;
@@ -104,13 +107,124 @@ class ReportFactory
     /**
      * Create a premium report DTO.
      *
-     * @param object $vehicle
-     * @param int $mileage
-     * @param array $data
+     * @param object $report
      */
-    public static function createPremiumReport($vehicle, $mileage, array $data): void
+    public static function createPremiumReport(Report $report): void
     {
+        $vehicle = Lemonbase::getVehicle($report->year, $report->make, $report->model);
 
+        if (!$vehicle) {
+            throw new \Exception('Vehicle not found');
+        }
+
+        $chatService = app(PremiumChatService::class);
+        $response = $chatService(
+            $report->make,
+            $report->model,
+            $report->year,
+            $report->mileage,
+            $report->params['zipCode'] ?? 90210,
+            $report->params['additionalInfo'] ?? ''
+        );
+
+        if (!is_array($response) || empty($response) || !isset($response['score']) || !isset($response['summary'])) {
+            // retry 2 more times
+            for ($i = 0; $i < 2; $i++) {
+                $response = $chatService(
+                    $report->make,
+                    $report->model,
+                    $report->year,
+                    $report->mileage,
+                    $report->params['zipCode'] ?? 90210,
+                    $report->params['additionalInfo'] ?? ''
+                );
+                if (is_array($response) && !empty($response) && isset($response['score']) && isset($response['summary'])) {
+                    break;
+                }
+            }
+        }
+
+        // Recalls mapping to expected format
+        $recalls = [];
+        if (isset($response['recalls']) && is_array($response['recalls'])) {
+            foreach ($response['recalls'] as $recall) {
+                $recalls[] = [
+                    'description' => $recall['description'] . "; Date: " . $recall['recall_date'] ?? 'No description provided',
+                    'priority' => $recall['critical'] ? 1 : 2,
+                ];
+            }
+        }
+
+        // Known issues mapping to expected format
+        $knownIssues = [];
+        if (isset($response['known_issues']) && is_array($response['known_issues'])) {
+            foreach ($response['known_issues'] as $issue) {
+                $knownIssues[] = [
+                    'description' => $issue['description'] ?? 'No description provided',
+                    'priority' => $issue['critical'] ? 1 : 2,
+                ];
+            }
+        }
+
+        // Format complaints to the expected structure
+        $complaints = [];
+        if (isset($response['repairs']) && is_array($response['repairs'])) {
+            usort($response['repairs'], function ($a, $b) {
+                return intval($b['likelihood']) <=> intval($a['likelihood']); // Sort by likelihood descending
+            });
+            foreach ($response['repairs'] as $repair) {
+                $complaints[Str::slug($repair['name'])] = [
+                    'normalized_title' => $repair['name'] ?? 'Unknown Repair',
+                    'description' => $repair['description'] ?? 'No description provided',
+                    'times_reported' => $repair['times_reported'] ?? 'not reported often',
+                    'bucket_from' => $repair['mileage_range_from'] ?? 0,
+                    'bucket_to' => $repair['mileage_range_to'] ?? 0,
+                    'cost_range_from' => $repair['cost_range_from'] ?? 0,
+                    'cost_range_to' => $repair['cost_range_to'] ?? 0,
+                    'likelyhood' => $repair['likelihood'] ?? null, // users will have to pay for premium to see this
+                    'complaint' => $repair['example_complaint'] ?? null, // only show if its a longer complaint with details
+                    'average_cost' => $repair['average_cost'] ?? 0,
+                ];
+            }
+        }
+
+        $score = $response['score'];
+        $recommendation = app(ScoringService::class)->getBuyerReccomendation($score);
+        $result = [
+            'score' => $score,
+            'summary' => $response['summary'] ?? $vehicle->content['summary'],
+            'recommendation' => $recommendation,
+            'complaints' => $complaints,
+            'cost_from' => $response['cost_from'] ?? 0,
+            'cost_to' => $response['cost_to'] ?? 0,
+            'checklist' => $response['checklist'] ?? [],
+            'questions' => $response['questions'] ?? [],
+            'recalls' => $recalls,
+            'known_issues' => $knownIssues,
+            'sources' => $response['sources'] ?? 'NHTSA, Edmunds, Consumer Reports',
+            'suggestions' => $response['suggestions'] ?? $vehicle->getSuggestions() ?? [
+                'Regular maintenance extends the lifespan of this vehicle significantly',
+                'Change the oil and filter regularly, and check the air filter',
+                'Check the maintenance schedule and follow it',
+            ],
+        ];
+
+        // Deduct a credit
+        $user = $report->user;
+        $service = app(CreditService::class);
+        $service->deductCredits($user, 1, 'Premium report for ' . $report->make . ' ' . $report->model . ' ' . $report->year, [
+            'report_uuid' => $report->uuid,
+            'vehicle' => [
+                'make' => $report->make,
+                'model' => $report->model,
+                'year' => $report->year,
+                'mileage' => $report->mileage,
+            ],
+        ]);
+
+        $report->result = $result;
+        $report->status = ReportStatus::COMPLETED;
+        $report->save();
     }
 
     /**
@@ -218,7 +332,7 @@ class ReportFactory
                 'bucket_from' => $complaint['bucket_from'],
                 'bucket_to' => $complaint['bucket_to'],
                 'likelyhood' => null, // users will have to pay for premium to see this
-                'complaint' => (strlen($complaint['primary_complaint']) > 10 && strpos($complaint['primary_complaint'], 'NHTSA') === false) ? $complaint['primary_complaint'] : null, // only show if its a longer complaint with details
+                'complaint' => null, // only show if its a longer complaint with details
                 'average_cost' => floor(($complaint['low_estimate'] + $complaint['high_estimate']) / 2),
             ];
         }, $complaints);
