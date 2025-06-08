@@ -188,7 +188,7 @@ class ReportFactory
             }
         }
 
-        $score = $response['score'];
+        $score = $response['score'] ?? app(ScoringService::class)->getVehicleScore($vehicle);
         $recommendation = app(ScoringService::class)->getBuyerReccomendation($score);
         $result = [
             'score' => $score,
