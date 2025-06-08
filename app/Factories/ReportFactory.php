@@ -17,6 +17,7 @@ use App\Services\ScoringService;
 use App\Util\Deslugify;
 use Illuminate\Support\Str;
 use App\Services\CreditService;
+use Illuminate\Support\Facades\Http;
 
 class ReportFactory
 {
@@ -117,6 +118,17 @@ class ReportFactory
             throw new \Exception('Vehicle not found');
         }
 
+        // Send REPORT html if possible
+        $listingHtml = null;
+        if (isset($report->params['listingLink']) && !empty($report->params['listingLink'])) {
+            try {
+                $listingHtml = self::getListingInformation($report);
+            } catch (\Exception $e) {
+                // Log the error but continue
+                \Log::error('Failed to fetch listing information: ' . $e->getMessage());
+            }
+        }
+
         $chatService = app(PremiumChatService::class);
         $response = $chatService(
             $report->make,
@@ -124,7 +136,8 @@ class ReportFactory
             $report->year,
             $report->mileage,
             $report->params['zipCode'] ?? 90210,
-            $report->params['additionalInfo'] ?? ''
+            $report->params['additionalInfo'] ?? '',
+            $listingHtml
         );
 
         if (!is_array($response) || empty($response) || !isset($response['score']) || !isset($response['summary'])) {
@@ -136,12 +149,17 @@ class ReportFactory
                     $report->year,
                     $report->mileage,
                     $report->params['zipCode'] ?? 90210,
-                    $report->params['additionalInfo'] ?? ''
+                    $report->params['additionalInfo'] ?? '',
+                    $listingHtml
                 );
                 if (is_array($response) && !empty($response) && isset($response['score']) && isset($response['summary'])) {
                     break;
                 }
             }
+        }
+
+        if (!is_array($response) || empty($response) || !isset($response['score']) || !isset($response['summary'])) {
+            throw new \Exception('Failed to generate premium report, please try again later');
         }
 
         // Recalls mapping to expected format
@@ -336,5 +354,25 @@ class ReportFactory
                 'average_cost' => floor(($complaint['low_estimate'] + $complaint['high_estimate']) / 2),
             ];
         }, $complaints);
+    }
+
+    public static function getListingInformation(Report $report)
+    {
+        $link = $report->params['listingLink'] ?? null;
+        if (!$link) {
+            throw new \Exception('Listing URL not provided');
+        }
+
+        $url = sprintf("https://api.scraperapi.com/?api_key=%s&url=%s&country_code=us", config('services.scraperapi.key'), urlencode($link));
+
+        $response = Http::withoutVerifying()
+            ->get($url)
+            ->body();
+
+        // Remove HTML tags and decode HTML entities
+        $clean_response = strip_tags($response);
+        $clean_response = html_entity_decode($clean_response, ENT_QUOTES | ENT_HTML5);
+
+        return $clean_response;
     }
 }

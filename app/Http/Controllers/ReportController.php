@@ -174,6 +174,7 @@ class ReportController extends Controller
             'session_id' => 'nullable|uuid',
             'zipCode' => 'nullable|string|max:10', // Optional zip code for future use
             'additionalInfo' => 'nullable|string', // Optional additional info
+            'listingLink' => 'nullable|url', // Optional link to the listing
         ]);
 
         // Check authentication - either user must be logged in or session_id must be provided
@@ -195,7 +196,8 @@ class ReportController extends Controller
         if ($userId
             && (
                 (isset($validated['zipCode']) && !empty($validated['zipCode'])) ||
-                (isset($validated['additionalInfo']) && !empty($validated['additionalInfo']))
+                (isset($validated['additionalInfo']) && !empty($validated['additionalInfo'])) ||
+                (isset($validated['listingLink']) && !empty($validated['listingLink']))
             )
         ) {
             try {
@@ -216,6 +218,7 @@ class ReportController extends Controller
         $report->params = [
             'zipCode' => $validated['zipCode'] ?? null,
             'additionalInfo' => $validated['additionalInfo'] ?? null,
+            'listingLink' => $validated['listingLink'] ?? null,
         ];
         $report->uuid = Str::uuid();
         $report->make = $validated['make'];

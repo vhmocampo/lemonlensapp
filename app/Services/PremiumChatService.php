@@ -39,7 +39,7 @@ class PremiumChatService
      * @return array
      */
     public function __invoke(
-        string $make, string $model, int $year, int $mileage, int $zipCode, string $information): array
+        string $make, string $model, int $year, int $mileage, int $zipCode, ?string $information = null, ?string $listingHtml = null): array
     {
         // Normalize the make and model
         $normalizedMake = Str::slug($make);
@@ -52,17 +52,24 @@ class PremiumChatService
             'cost_from' => 'expected low range of upcoming repair cost, within the next 48 months, using the amounts from the given repairs, if any', 
             'cost_to' => 'expected upper range of upcoming repair costs, within the next 48 months, using the amounts from the given repairs, if any',
             'summary' => 'summarize the vehicle; if i provided relevant information, analyze it and include it in the summary, otherwise just summarize the vehicle based on the make, model, year, mileage, and zip code', 
-            'checklist' => 'a list of 5 or less items that I should check when inspecting or buying the vehicle, in laymen terms, specifically what I should look for and why it matters', 
-            'repairs' => 'a list of 5 or less likely upcoming repairs (excluding recalls), sorted by likelihood, I might need to do, with these fields (always include costs) -- if i provided relevant information, include that as context for which repairs might be likely: description (140 words), cost_range_from (int), cost_range_to (int), average_cost (int), expected_mileage (int), mileage_range_from (int), mileage_range_to (int), likelihood (percentage), name (technical mechanic term), example_complaint, times_reported (string) which is how frequently this repair is reported by other owners, in laymen terms',
-            'questions' => 'a list of 5 or less questions I should ask the dealer, in laymen terms. avoid generic questions, avoid questions like "Is this vehicle reliable?" or "What is the history of this vehicle?"',
-            'known_issues' => 'a list of known issues for the vehicle, if any, otherwise provide empty array, with these fields: critical (boolean), description',
-            'recalls' => 'a list of recalls for the vehicle, if any (otherwise provide empty array), with these fields: critical (boolean), description, recall_date',
-            "sources" => 'a list of sources, comma separated, just a string, that were used to generate this report, for example: "NHTSA, Edmunds, Consumer Reports"',
+            'checklist' => 'an array of 5 or less items that I should check when inspecting or buying the vehicle, in laymen terms, specifically what I should look for and why it matters', 
+            'repairs' => 'an array of 5 or less likely upcoming repairs (excluding recalls), sorted by likelihood, I might need to do, with these fields (always include costs) -- if i provided relevant information, include that as context for which repairs might be likely: description (140 words), cost_range_from (int), cost_range_to (int), average_cost (int), expected_mileage (int), mileage_range_from (int), mileage_range_to (int), likelihood (percentage), name (technical mechanic term), example_complaint, times_reported (string) which is how frequently this repair is reported by other owners, in laymen terms',
+            'questions' => 'an array of 5 or less questions I should ask the dealer, in laymen terms. avoid generic questions, avoid questions like "Is this vehicle reliable?" or "What is the history of this vehicle?"',
+            'known_issues' => 'an array of known issues for the vehicle, if any, otherwise provide empty array, with these fields: critical (boolean), description',
+            'recalls' => 'an array of recalls for the vehicle, if any (otherwise provide empty array), with these fields: critical (boolean), description, recall_date',
+            "sources" => 'a text list of sources, comma separated, just a string, that were used to generate this report, for example: "NHTSA, Edmunds, Consumer Reports"',
         ];
 
         $format = "Response format should be a JSON object with the following fields:\n";
         foreach ($expectedFields as $field => $description) {
             $format .= "- `{$field}`: {$description}\n";
+        }
+
+        // If the listing HTML is provided, include it in the prompt
+        if (!empty($listingHtml)) {
+            $listingHtml = strip_tags($listingHtml); // Remove HTML tags for better readability
+            $listingHtml = Str::limit($listingHtml, 20000); // Limit to 500 characters for brevity
+            $information .= "\n\nListing HTML: {$listingHtml}";
         }
 
         // Build the prompt
