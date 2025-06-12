@@ -16,7 +16,6 @@ use App\Services\RepairDescriptionService;
 use App\Services\ScoringService;
 use App\Util\Deslugify;
 use Illuminate\Support\Str;
-use App\Services\CreditService;
 use Illuminate\Support\Facades\Http;
 
 class ReportFactory
@@ -226,19 +225,6 @@ class ReportFactory
                 'Check the maintenance schedule and follow it',
             ],
         ];
-
-        // Deduct a credit
-        $user = $report->user;
-        $service = app(CreditService::class);
-        $service->deductCredits($user, 1, 'Premium report for ' . $report->make . ' ' . $report->model . ' ' . $report->year, [
-            'report_uuid' => $report->uuid,
-            'vehicle' => [
-                'make' => $report->make,
-                'model' => $report->model,
-                'year' => $report->year,
-                'mileage' => $report->mileage,
-            ],
-        ]);
 
         $report->result = $result;
         $report->status = ReportStatus::COMPLETED;

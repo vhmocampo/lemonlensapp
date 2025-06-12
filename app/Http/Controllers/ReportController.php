@@ -175,6 +175,7 @@ class ReportController extends Controller
             'zipCode' => 'nullable|string|max:10', // Optional zip code for future use
             'additionalInfo' => 'nullable|string', // Optional additional info
             'listingLink' => 'nullable|url', // Optional link to the listing
+            'isPremium' => 'nullable|boolean', // Optional flag for premium report
         ]);
 
         // Check authentication - either user must be logged in or session_id must be provided
@@ -194,14 +195,10 @@ class ReportController extends Controller
         $reportType = 'standard'; // Default report type
         // Check credits for authenticated users
         if ($userId
-            && (
-                (isset($validated['zipCode']) && !empty($validated['zipCode'])) ||
-                (isset($validated['additionalInfo']) && !empty($validated['additionalInfo'])) ||
-                (isset($validated['listingLink']) && !empty($validated['listingLink']))
-            )
-        ) {
+            && (isset($validated['isPremium']) && $validated['isPremium'] === true)) {
             try {
                 $this->checkCredits($userId);
+
                 $reportType = 'premium'; // Premium report if additional info is provided
             } catch (\Exception $e) {
                 return response()->json([
@@ -232,6 +229,20 @@ class ReportController extends Controller
 
         // Dispatch job to generate report
         GenerateReportJob::dispatch($report->id);
+
+        // If user is authenticated, deduct credits
+        if ($reportType === 'premium') {
+            $creditService = app(CreditService::class);
+            $creditService->deductCredits(User::find($userId), 1, 'Generated premium report for ' . $report->make . ' ' . $report->model . ' ' . $report->year, [
+                'report_uuid' => $report->uuid,
+                'vehicle' => [
+                    'make' => $report->make,
+                    'model' => $report->model,
+                    'year' => $report->year,
+                    'mileage' => $report->mileage,
+                ],
+            ]);
+        }
 
         return response()->json([
             'message' => 'Report generation has been queued',
